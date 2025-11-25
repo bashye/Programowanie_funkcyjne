@@ -1,94 +1,109 @@
-Erlang – Lekcja 2: Projektowanie Aplikacji Współbieżnych
+# Erlang: Projektowanie Aplikacji Współbieżnych
 
-2025 • 
-𝑇
-𝑤
-𝑜
-𝑗
-𝑒
-𝐼
-𝑚
-𝑖
-ę
-TwojeImię, 
-𝑇
-𝑤
-𝑜
-𝑗
-𝑎
-𝑈
-𝑐
-𝑧
-𝑒
-𝑙
-𝑛
-𝑖
-𝑎
-TwojaUczelnia
+## CZĘŚĆ 1: Teoria i Projektowanie (20 min)
+*Nie zaczynaj od kodu. Zacznij od problemu.*
 
-Cel zajęć
+### 1.1. Definicja problemu
+Chcemy napisać system przypomnień (Reminder App).
 
-Zrozumienie, jak zaprojektować, podzielić i zaimplementować system oparty na wielu procesach w Erlangu.
-Stworzymy aplikację Event Reminder (System Przypomnień), opierając się na architekturze OTP.
+#### Wymagania 1:
+- Dodawanie wydarzenia (Nazwa, Opis, Czas).
+- Powiadomienie, gdy czas nadejdzie.
+- Anulowanie wydarzenia po nazwie.
+- Obsługa wielu klientów (możliwość podpięcia GUI, WWW w przyszłości).
 
-1. Teoria: Jak myśleć procesami?
+### 1.2. Dyskusja: Jak to zaprojektować? (Interakcja ze studentami)
+Zadaj pytanie: *"Jak byście to napisali w C++ lub Javie?"*
 
-W programowaniu obiektowym (OOP) modelujemy system za pomocą klas i obiektów.
-W Erlangu modelujemy go za pomocą procesów i protokółów komunikacji.
+- Odp: Pewnie lista obiektów i pętla while, która co sekundę sprawdza czas.
+- Problem: Co jeśli mamy miliony wydarzeń? Pętla się dławi. Co jeśli pętla padnie? Tracimy wszystko.
 
-A. Dekompozycja Problemu (Graf Procesów)
+### 1.3. Architektura w Erlangu (Rysujemy na tablicy/ekranie)
+W Erlangu dzielimy problem na małe, niezależne byty. W PDF zaproponowano podział na 3 role:
 
-System przypomnień musi działać współbieżnie — nie może być jedną pętlą while.
+1. **Klient (Client):** Użytkownik lub inny system. Zleca zadania.
+2. **Serwer Wydarzeń (Event Server):** Menadżer.
+- Przyjmuje zlecenia (dodaj/anuluj).
+- Zarządza subskrybentami (komu wysłać powiadomienie?).
+- NIE odlicza czasu! (To kluczowe dla dekompozycji).
+3. **Procesy Wydarzeń (Event Processes - X, Y, Z):**
+- Każde przypomnienie to osobny proces.
+- Proces startuje, czeka X czasu, wysyła wiadomość i umiera.
+- Są lekkie (można ich mieć miliony).
+> **Kluczowa uwaga profesora:** To jest dekompozycja problemu. Jeśli proces "Przypomnienie o pizzy" ulegnie awarii, serwer działa dalej, a "Przypomnienie o spotkaniu" jest bezpieczne.
 
-Procesy:
+### Projektowanie Protokołu (Kontrakt)
+Zanim napiszemy linijkę kodu, musimy ustalić język komunikacji. To symuluje pracę inżyniera.
 
-Client – interfejs użytkownika (np. shell).
+Wypiszcie wspólnie wiadomości 4:
 
-Event Server – centralny serwer:
+- **Klient -> Serwer:**
+	- `{subscribe, Pid} `
+	- `{add, Name, Description, TimeOut}`
+	- `{cancel, Name}`
+- **Serwer -> Klient:**
+	- `{Ref, ok}` lub `{error, Reason}`
+	- `{done, Name, Description}` (Gdy czas minie)
+- **Serwer <-> Proces Wydarzenia (Wewnętrzne):**
+	- Serwer -> Proces: cancel
+	- Proces -> Serwer: {done, Id}
 
-przyjmuje subskrypcje,
+---
+## CZĘŚĆ 2: Implementacja "Robotnika" (Moduł event) (25 min)
+*Tu wchodzi "mięso" i rozwiązywanie problemów implementacyjnych.*
 
-zarządza listą wydarzeń,
-
-kontaktuje klientów z procesami wydarzeń.
-
-Event Process (X,Y,Z) – jeden proces = jedno przypomnienie:
-
-czeka X czasu, wysyła „Już!”,
-
-może zostać anulowany,
-
-awaria jednego nie zatrzymuje reszty (fault isolation).
-
-B. Protokół i Skrzynki Pocztowe (Mailboxes)
-
-Każdy proces ma własną skrzynkę odbiorczą:
-
-Pid ! Msg — wysłanie wiadomości
-
-receive ... end — odbiór wiadomości
-
-Protokół:
-
-{subscribe, Self}
-
-{add, Name, Desc, Time}
-
-{cancel, Name}
-
-{done, Name}
-
-2. Implementacja Krok po Kroku
-Krok 1: Pojedyncze Wydarzenie (event.erl)
-
-Kod procesu, który czeka określony czas i sygnalizuje zakończenie.
-
+### 2.1. Wersja naiwna (Szybki kod)
+Piszemy prosty proces, który czeka.
+```erlang
+%%writefile event.erl
 -module(event).
 -compile(export_all).
+-record(state, {server, name, to_go=0}).
 
--record(state, {server, name, to_go}).
+loop(S = #state{server=Server, to_go=ToGo}) ->
+    receive
+        {Server, Ref, cancel} -> Server ! {Ref, ok}
+    after ToGo * 1000 ->
+        Server ! {done, S#state.name}
+    end.
+```
 
-%% Funkcja startująca proces
+### 2.2. Problem inżynierski: Limit 50 dni (Ważne!)
+Tutaj zatrzymaj studentów.
+
+Pytanie: "Co się stanie, jeśli ustawię przypomnienie na za 2 lata?"
+Odp: Erlang crashnie. Wartość after w milisekundach jest ograniczona do około 50 dni (dokładnie $2^{32}$ ms)5.
+
+Zadanie: Jak to naprawić bez zmieniania języka?
+Rozwiązanie: Musimy podzielić długi czas na pętle po 49 dni.
+To świetne ćwiczenie na rekurencję i myślenie algorytmiczne.
+Zaimplementujcie funkcję normalize:
+```erlang
+normalize(N) ->
+    Limit = 49*24*60*60,
+    [N rem Limit | lists:duplicate(N div Limit, Limit)].
+```
+> **Tłumaczenie:** Jeśli mamy czekać 100 dni, a limit to 49, tworzymy listę [2, 49, 49] (kolejność nie ma znaczenia przy sumowaniu, ale technicznie czekamy kawałkami).
+
+### Poprawiona pętla loop
+Musimy obsłużyć listę czasów zamiast jednej liczby.
+```erlang
+loop(S = #state{server=Server, to_go=[T|Next]}) ->
+    receive
+        {Server, Ref, cancel} ->
+            Server ! {Ref, ok}
+    after T * 1000 ->
+        if
+            Next =:= [] -> Server ! {done, S#state.name};
+            true -> loop(S#state{to_go=Next})
+        end
+    end.
+```
+> Teraz nasz system jest robust (solidny).
+
+### 2.4. Finalne funkcje startowe
+Dodajemy start i init, które używają normalizacji.
+```erlang
 start(EventName, Delay) ->
     spawn(?MODULE, init, [self(), EventName, Delay]).
 
@@ -96,167 +111,5 @@ start_link(EventName, Delay) ->
     spawn_link(?MODULE, init, [self(), EventName, Delay]).
 
 init(Server, EventName, Delay) ->
-    loop(#state{server = Server, name = EventName, to_go = Delay}).
-
-%% Główna pętla procesu
-loop(S = #state{server = Server, to_go = ToGo}) ->
-    receive
-        {Server, Ref, cancel} ->
-            Server ! {Ref, ok}
-    after ToGo * 1000 ->
-        Server ! {done, S#state.name}
-    end.
-
-Krok 2: Interfejs — ukrywanie komunikacji cancel/1
-cancel(Pid) ->
-    Ref = erlang:monitor(process, Pid),
-    Pid ! {self(), Ref, cancel},
-    receive
-        {Ref, ok} ->
-            erlang:demonitor(Ref, [flush]),
-            ok;
-        {'DOWN', Ref, process, Pid, _Reason} ->
-            ok
-    end.
-
-Krok 3: Serwer Wydarzeń (evserv.erl)
--module(evserv).
--compile(export_all).
-
--record(state, {events, clients}).  %% events = orddict(), clients = orddict()
--record(event, {name, description, pid, timeout}).
-
-%% Pętla serwera
-loop(S = #state{events = Events, clients = Clients}) ->
-    receive
-        %% 1. Subskrypcja klienta
-        {Pid, MsgRef, {subscribe, Client}} ->
-            Ref = erlang:monitor(process, Client),
-            NewClients = orddict:store(Ref, Client, Clients),
-            Pid ! {MsgRef, ok},
-            loop(S#state{clients = NewClients});
-
-        %% 2. Dodawanie wydarzenia
-        {Pid, MsgRef, {add, Name, Description, TimeOut}} ->
-            EventPid = event:start_link(Name, TimeOut),
-            NewEvents = orddict:store(Name,
-                                       #event{name = Name, description = Description,
-                                              pid = EventPid, timeout = TimeOut},
-                                       Events),
-            Pid ! {MsgRef, ok},
-            loop(S#state{events = NewEvents});
-
-        %% 3. Anulowanie wydarzenia
-        {Pid, MsgRef, {cancel, Name}} ->
-            Events2 =
-                case orddict:find(Name, Events) of
-                    {ok, E} ->
-                        event:cancel(E#event.pid),
-                        orddict:erase(Name, Events);
-                    error ->
-                        Events
-                end,
-            Pid ! {MsgRef, ok},
-            loop(S#state{events = Events2});
-
-        %% 4. Obsługa zakończonego wydarzenia
-        {done, Name} ->
-            case orddict:find(Name, Events) of
-                {ok, E} ->
-                    send_to_clients({done, E#event.name, E#event.description}, Clients),
-                    NewEvents = orddict:erase(Name, Events),
-                    loop(S#state{events = NewEvents});
-                error ->
-                    loop(S)
-            end;
-
-        %% 5. Hot code swap
-        code_change ->
-            ?MODULE:loop(S);
-
-        shutdown ->
-            exit(shutdown)
-    end.
-
-%% Start serwera
-init() ->
-    loop(#state{events = orddict:new(), clients = orddict:new()}).
-
-start() ->
-    register(?MODULE, spawn(?MODULE, init, [])).
-
-%% Wysyłanie wiadomości do wszystkich klientów
-send_to_clients(Msg, ClientDict) ->
-    orddict:map(fun(_Ref, Pid) -> Pid ! Msg end, ClientDict).
-
-3. Bezpieczeństwo i „Let It Crash”
-
-monitor, link, separacja błędów — Erlang radzi sobie z awarią poprzez izolację procesów.
-
-4. Zadania dla Studentów
-Zadanie 1 — „Leniwy Student”
-
-Napisz proces, który:
-
-reaguje na ucz_sie,
-
-zasypia po 3000 ms,
-
-kończy się po koniec.
-
-Zadanie 2 — „Prosty Rozdzielacz Zadań”
-
-Proces router:
-
-przyjmuje {oblicz, dodaj, A, B} i {oblicz, mnoz, A, B},
-
-tworzy proces-worker do obliczeń.
-
-👨‍🏫 Rozwiązania
-Rozwiązanie Zadania 1 — lazy_student.erl
--module(lazy_student).
--export([start/0, loop/0]).
-
-start() -> spawn(?MODULE, loop, []).
-
-loop() ->
-    receive
-        ucz_sie ->
-            io:format("Student: OK, juz sie ucze...~n"),
-            loop();
-        koniec ->
-            io:format("Student: Koniec zajec!~n")
-    after 3000 ->
-        io:format("Student: Zasnalem z nudow! (Timeout)~n")
-    end.
-
-Rozwiązanie Zadania 2 — router.erl
--module(router).
--export([start/0, loop/0]).
-
-start() -> spawn(?MODULE, loop, []).
-
-loop() ->
-    receive
-        {oblicz, dodaj, A, B} ->
-            spawn(fun() ->
-                io:format("Worker: Wynik dodawania ~p + ~p = ~p~n", [A, B, A + B])
-            end),
-            loop();
-
-        {oblicz, mnoz, A, B} ->
-            spawn(fun() ->
-                io:format("Worker: Wynik mnozenia ~p * ~p = ~p~n", [A, B, A * B])
-            end),
-            loop();
-
-        stop ->
-            io:format("Router: Zamykam biuro.~n")
-    end.
-
-Diagramy pomocnicze
-
-Drzewo nadzoru (Supervisor → Server → Event processy)
-
-Cykl życia wiadomości:
-Client → Server Mailbox → Pattern match → Zmiana stanu → loop()
+    loop(#state{server=Server, name=EventName, to_go=normalize(Delay)}).
+```
