@@ -1,7 +1,6 @@
 # Erlang: Projektowanie Aplikacji Współbieżnych
 
-## CZĘŚĆ 1: Teoria i Projektowanie (20 min)
-*Nie zaczynaj od kodu. Zacznij od problemu.*
+## CZĘŚĆ 1: Teoria i Projektowanie
 
 ### 1.1. Definicja problemu
 Chcemy napisać system przypomnień (Reminder App).
@@ -12,14 +11,8 @@ Chcemy napisać system przypomnień (Reminder App).
 - Anulowanie wydarzenia po nazwie.
 - Obsługa wielu klientów (możliwość podpięcia GUI, WWW w przyszłości).
 
-### 1.2. Dyskusja: Jak to zaprojektować? (Interakcja ze studentami)
-Zadaj pytanie: *"Jak byście to napisali w C++ lub Javie?"*
-
-- Odp: Pewnie lista obiektów i pętla while, która co sekundę sprawdza czas.
-- Problem: Co jeśli mamy miliony wydarzeń? Pętla się dławi. Co jeśli pętla padnie? Tracimy wszystko.
-
-### 1.3. Architektura w Erlangu (Rysujemy na tablicy/ekranie)
-W Erlangu dzielimy problem na małe, niezależne byty. W PDF zaproponowano podział na 3 role:
+### 1.3. Architektura w Erlang
+W Erlangu dzielimy problem na małe, niezależne byty:
 
 1. **Klient (Client):** Użytkownik lub inny system. Zleca zadania.
 2. **Serwer Wydarzeń (Event Server):** Menadżer.
@@ -33,9 +26,6 @@ W Erlangu dzielimy problem na małe, niezależne byty. W PDF zaproponowano podzi
 > **Kluczowa uwaga profesora:** To jest dekompozycja problemu. Jeśli proces "Przypomnienie o pizzy" ulegnie awarii, serwer działa dalej, a "Przypomnienie o spotkaniu" jest bezpieczne.
 
 ### Projektowanie Protokołu (Kontrakt)
-Zanim napiszemy linijkę kodu, musimy ustalić język komunikacji. To symuluje pracę inżyniera.
-
-Wypiszcie wspólnie wiadomości 4:
 
 - **Klient -> Serwer:**
 	- `{subscribe, Pid} `
@@ -49,10 +39,9 @@ Wypiszcie wspólnie wiadomości 4:
 	- Proces -> Serwer: {done, Id}
 
 ---
-## CZĘŚĆ 2: Implementacja "Robotnika" (Moduł event) (25 min)
-*Tu wchodzi "mięso" i rozwiązywanie problemów implementacyjnych.*
+## CZĘŚĆ 2: Implementacja "Robotnika" (Moduł event)
 
-### 2.1. Wersja naiwna (Szybki kod)
+### 2.1. Wersja naiwna
 Piszemy prosty proces, który czeka.
 ```erlang
 %%writefile event.erl
@@ -69,15 +58,13 @@ loop(S = #state{server=Server, to_go=ToGo}) ->
 ```
 
 ### 2.2. Problem inżynierski: Limit 50 dni (Ważne!)
-Tutaj zatrzymaj studentów.
 
 Pytanie: "Co się stanie, jeśli ustawię przypomnienie na za 2 lata?"
 Odp: Erlang crashnie. Wartość after w milisekundach jest ograniczona do około 50 dni (dokładnie $2^{32}$ ms)5.
 
 Zadanie: Jak to naprawić bez zmieniania języka?
 Rozwiązanie: Musimy podzielić długi czas na pętle po 49 dni.
-To świetne ćwiczenie na rekurencję i myślenie algorytmiczne.
-Zaimplementujcie funkcję normalize:
+Funkcja normalize:
 ```erlang
 normalize(N) ->
     Limit = 49*24*60*60,
@@ -115,7 +102,7 @@ init(Server, EventName, Delay) ->
 ```
 
 ---
-## CZĘŚĆ 3: Serwer i Zarządzanie Stanem (25 min)
+## CZĘŚĆ 3: Serwer i Zarządzanie Stanem
 
 ### 3.1. Struktura danych
 Serwer musi pamiętać stan. Nie używamy bazy danych, tylko pamięci procesu.
@@ -205,12 +192,9 @@ evserv:add_event("Test", "Opis", 5).
 %% Czekamy 5 sekund...
 flush().
 ```
-### 4.2. Hot Code Swapping (Wymiana silnika w locie)
-
-
 ---
 ## CZĘŚĆ 5: Supervision
-System jest fajny, ale co jak serwer padnie? Potrzebujemy "Nadzorcy" (Supervisor).
+System jest dobry, ale co jak serwer padnie? Potrzebujemy "Nadzorcy" (Supervisor).
 ### 5.1. Prosty Supervisor
 Supervisor to proces, którego jedynym zadaniem jest pilnowanie, czy inny proces żyje. Jeśli tamten umrze, supervisor go wskrzesza.
 ```erlang
