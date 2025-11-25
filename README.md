@@ -434,6 +434,7 @@ worker_loop(Id) ->
     end.
 ```
 **Jak to testować?
+
 Zalecam testowanie Load Balancera w taki sposób:**
 ```erlang
 c(lb).
