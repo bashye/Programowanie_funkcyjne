@@ -446,3 +446,10 @@ lb:send_package("Paczka C").
 % a po 2 sekundach "Dostarczono..." dla wszystkich.
 % To dowodzi, że pracują równolegle!
 ```
+
+**Podsumowanie dla studentów (Wnioski)**
+1.	Podział na procesy: Serwer zarządza logiką, Eventy zarządzają czasem. To pozwala na skalowanie i izolację błędów.
+2.	Stan: Jest prywatny dla procesu.
+3.	Protokół: Należy go zdefiniować przed kodowaniem.
+4.	Limity: Nawet w potężnym Erlangu są limity (50 dni), które trzeba obejść inżyniersko.
+5.	Hot Code Swap: Możemy naprawiać błędy bez zatrzymywania systemu.
