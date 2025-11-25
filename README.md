@@ -180,7 +180,7 @@ Dlaczego to ważne? Bo jeśli zmienimy format wiadomości wewnętrznych, nie chc
 Zadanie: Dopisz funkcje add_event/3 i subscribe/1 w module evserv, które ukrywają ! i receive8.
 
 ---
-## CZĘŚĆ 4: Testowanie i Hot Code Swapping (15 min)
+## CZĘŚĆ 4: Testowanie
 
 ### 4.1. Test manualny w Notebooku
 ```erlang
