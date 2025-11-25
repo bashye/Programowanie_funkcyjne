@@ -23,7 +23,7 @@ W Erlangu dzielimy problem na małe, niezależne byty:
 - Każde przypomnienie to osobny proces.
 - Proces startuje, czeka X czasu, wysyła wiadomość i umiera.
 - Są lekkie (można ich mieć miliony).
-> **Kluczowa uwaga profesora:** To jest dekompozycja problemu. Jeśli proces "Przypomnienie o pizzy" ulegnie awarii, serwer działa dalej, a "Przypomnienie o spotkaniu" jest bezpieczne.
+> **Kluczowa uwaga:** To jest dekompozycja problemu. Jeśli proces "Przypomnienie o pizzy" ulegnie awarii, serwer działa dalej, a "Przypomnienie o spotkaniu" jest bezpieczne.
 
 ### Projektowanie Protokołu (Kontrakt)
 
