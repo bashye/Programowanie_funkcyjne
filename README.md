@@ -513,4 +513,185 @@ Supervisor przestał działać, więc jego dziecko również.
 
 ---
 
-### Zadania do samodzielnego wykonania
+## Zadania do samodzielnego wykonania
+
+### **ZADANIE 1 – Prosty aktor (proces) odbierający wiadomości**
+**Polecenie:**
+1. Napisz funkcję `loop/0`, która:
+	- wypisuje na ekran otrzymaną wiadomość,
+	- wraca do oczekiwania w pętli.
+2. Utwórz proces za pomocą `spawn`.
+3. Wyślij do niego kilka różnych wiadomości.
+
+### **ZADANIE 2 – Proces z timeoutem**
+**Polecenie:**
+1. Napisz proces, który:
+	- czeka 5 sekund na wiadomość `{ping, Pid}`,
+	- jeśli ją dostanie → odsyła `{pong}`,
+	- jeśli *nie* dostanie → wypisuje "`timeout`" i kończy działanie.
+2. Uruchom proces i przetestuj oba przypadki:
+	- wyślij do niego wiadomość na czas,
+	- oraz nie wysyłaj nic, aby wywołać timeout.
+
+### **ZADANIE 3 – Mini-serwer zarządzający stanem**
+**Polecenie:**
+1. Napisz proces-serwer (pętla) przechowujący listę liczb.
+2. Serwer ma obsługiwać wiadomości:
+	- `{add, Value}` — dodaje liczbę do listy,
+	- `get` — odsyła aktualną listę nadawcy.
+3. Napisz funkcję pomocniczą `rpc(Pid, Msg)`, która:
+	- wysyła wiadomość `{self(), Msg}`,
+	- robi `receive` i zwraca odpowiedź,
+	- tak by komunikacja wyglądała jak „zdalne wywołanie”.
+4. Przetestuj:
+	- tworzenie serwera,
+	- dodawanie 3 wartości,
+	- pobranie całej listy.
+
+### **ZADANIE 4 – Proces-timer (prosty „event”)**
+**Polecenie:**
+Napisz funkcję, która:
+1. Tworzy nowy proces-timer tak:
+	- czeka określoną liczbę sekund,
+	- po czasie odsyła do nadawcy wiadomość `{done, Name}`.
+2. Timer ma działać niezależnie od reszty notebooka.
+3. Przetestuj:
+	- utworzenie dwóch timerów o różnych czasach,
+	- sprawdzenie, że oba zwracają `done` we właściwej kolejności,
+	- pokazanie, że kolejne komórki w notebooku nadal działają (studencka obserwacja współbieżności).
+
+## **Rozwiązania zadań**
+
+### Zadanie 1:
+```erlang
+-module(ex1_actor).
+-export([start/0, loop/0]).
+
+%% Startuje nowy proces-aktora
+start() ->
+    spawn(?MODULE, loop, []).
+
+%% Pętla procesu: wypisuje każdą otrzymaną wiadomość
+loop() ->
+    receive
+        Msg ->
+            io:format("received: ~p~n", [Msg]),
+            loop()
+    end.
+```
+Test:
+```erlang
+%% === TEST ZADANIA 1: ex1_actor ===
+
+%% 1. Kompilacja modułu
+c(ex1_actor).
+%% Oczekiwane:
+%% {ok,ex1_actor}
+
+%% 2. Startujemy proces aktora
+Pid = ex1_actor:start().
+%% Oczekiwane (PID będzie różny):
+%% <0.75.0>
+
+%% 3. Wysyłamy pierwszą wiadomość
+Pid ! hello.
+%% Oczekiwane na ekranie:
+%% received: hello
+%% Oczekiwany wynik zwrócony przez komórkę:
+%% hello
+
+%% 4. Wysyłamy drugą wiadomość
+Pid ! 123.
+%% Oczekiwane na ekranie:
+%% received: 123
+%% Oczekiwany wynik:
+%% 123
+
+%% 5. Wysyłamy trzecią wiadomość (krotkę)
+Pid ! {test, 42}.
+%% Oczekiwane na ekranie:
+%% received: {test,42}
+%% Oczekiwany wynik:
+%% {test,42}
+
+%% Proces nadal działa i czeka na kolejne wiadomości
+```
+
+### Zadanie 2:
+```erlang
+-module(ex2_timeout).
+-export([start/0, loop/0]).
+
+%% Startuje proces z timeoutem
+start() ->
+    spawn(?MODULE, loop, []).
+
+%% Czeka na {ping, From}; jeśli nie dostanie w 5s -> "timeout"
+loop() ->
+    receive
+        {ping, From} ->
+            From ! pong
+    after 5000 ->
+            io:format("timeout~n")
+    end.
+```
+Testy:
+
+### Zadanie 3:
+```erlang
+-module(ex3_kv).
+-export([start/0, put/2, get/1, loop/1]).
+
+%% Startuje serwer i rejestruje go pod nazwą ex3_kv
+start() ->
+    Pid = spawn(?MODULE, loop, [[]]),
+    register(ex3_kv, Pid),
+    Pid.
+
+%% Główna pętla serwera, State = lista liczb
+loop(State) ->
+    receive
+        {From, {add, V}} ->
+            NewState = [V | State],
+            From ! ok,
+            loop(NewState);
+
+        {From, get} ->
+            From ! State,
+            loop(State)
+    end.
+
+%% API: dodaje liczbę do serwera
+put(Name, V) ->
+    ex3_kv ! {self(), {add, V}},
+    receive
+        Reply -> Reply
+    end.
+
+%% API: pobiera aktualną listę
+get(Name) ->
+    ex3_kv ! {self(), get},
+    receive
+        Reply -> Reply
+    end.
+```
+Testy:
+
+### Zadanie 4:
+```erlang
+-module(ex4_timer).
+-export([start_timer/3]).
+
+%% Startuje timer:
+%% Name    - nazwa zdarzenia (np. "A")
+%% Seconds - ile sekund czekać
+%% Receiver - PID procesu, który ma dostać {done, Name}
+start_timer(Name, Seconds, Receiver) ->
+    spawn(fun() ->
+        receive
+        after Seconds * 1000 ->
+            Receiver ! {done, Name}
+        end
+    end).
+```
+Testy:
