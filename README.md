@@ -228,10 +228,10 @@ loop(S = #state{}) ->
         ...
     end.
 ```
-Tutaj dzieje się cała logika:
-	- `S` to aktualny stan (`events`, `clients`),
-	- w każdej gałęzi `receive` modyfikujemy stan (np. dodajemy event),
-	- i wywołujemy `loop/1` z nową wersją stanu.
+- `S` to aktualny stan (`events`, `clients`),
+- w każdej gałęzi `receive` modyfikujemy stan (np. dodajemy event),
+- i wywołujemy `loop/1` z nową wersją stanu.
+
 Czyli: brak zmiennych globalnych, brak mutacji “w miejscu” – tylko przekazywanie nowego `S` dalej.
 To jest esencja bezpiecznej współbieżności w Erlangu.
 
