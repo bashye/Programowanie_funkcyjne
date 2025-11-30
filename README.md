@@ -296,7 +296,7 @@ To chroni system przed „martwymi zdarzeniami”.
     Pid ! {MsgRef, ok},
     loop(S#state{events=Events});
 ```
-Mechanizm:
+- Mechanizm:
 	- serwer sprawdza, czy zdarzenie istnieje,
 	- jeśli tak:
 		- wywołuje `event:cancel/1`, aby zatrzymać proces timera,
