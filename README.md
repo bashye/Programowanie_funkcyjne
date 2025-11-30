@@ -123,11 +123,9 @@ loop(S = #state{server=Server}) ->
             Server ! {done, S#state.name}
     end.
 ```
-
-Dodaliśmy:
-	- `#state{server=Server}` - pobiera PID serwera, żeby móc wysyłać mu odpowiedź
-	- `S#state.to_go * 1000` – zamieniamy sekundy na milisekundy.
-	- Powiadomienie `done` – po upływie czasu wysyłamy do serwera komunikat: `{done, Name}`
+- `#state{server=Server}` - pobiera PID serwera, żeby móc wysyłać mu odpowiedź
+- `S#state.to_go * 1000` – zamieniamy sekundy na milisekundy.
+- Powiadomienie `done` – po upływie czasu wysyłamy do serwera komunikat: `{done, Name}`
 To informuje go, że wydarzenie się zakończyło.
 
 Test:
