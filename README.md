@@ -180,9 +180,11 @@ loop(S = #state{server=Server, to_go=[T|Next]}) ->
     end.
 ```
 
+---
+
 ## CZĘŚĆ 3: Moduł Server
 
-### 3.1: Format wiadomości {Pid, Ref, Message}
+**Format wiadomości {Pid, Ref, Message}**
 Serwer dogaduje się z klientami zawsze w tym samym formacie:
 ```erlang
 {Pid, MsgRef, {subscribe, Client}}
@@ -193,7 +195,7 @@ Serwer dogaduje się z klientami zawsze w tym samym formacie:
 - `MsgRef` – unikalna referencja odpowiedzi (klient wie, której odpowiedzi dotyczy).
 - `{...}` – właściwa treść polecenia (subscribe/add/cancel).
 
-### 3.2: Rekord state – stan całego serwera
+**Rekord state – stan całego serwera**
 ```erlang
 -record(state, {
     events,   %% lista zdarzeń
@@ -204,7 +206,7 @@ Ten rekord przechowuje:
 	- `events` – informacje o aktywnych zdarzeniach
 	- `clients` – PID-y klientów, którzy chcą dostawać powiadomienia
 	
-### 3.3: Rekord event – opis jednego wydarzenia
+**Rekord event – opis jednego wydarzenia**
 ```erlang
 -record(event, {
     name = "",
@@ -214,228 +216,304 @@ Ten rekord przechowuje:
 }).
 ```
 Dla każdego zdarzenia serwer pamięta:
-	- name – identyfikator,
-	- description – treść powiadomienia,
-	- pid – PID procesu timera (`event.erl),
-	- timeout – kiedy ma się wykonać.
+	- `name` – identyfikator,
+	- `description` – treść powiadomienia,
+	- `pid` – PID procesu timera (`event.erl`),
+	- `timeout` – kiedy ma się wykonać.
 Dzięki temu:
 	- po nazwie możemy znaleźć PID procesu i np. je anulować,
 	- po done, Name możemy dobrać opis z rekordu i wysłać go klientom.
+
+**Pętla serwera z wczytanym stanem**
+```erlang
+loop(S = #state{}) ->
+    receive
+        ...
+    end.
+```
+Tutaj dzieje się cała logika:
+	- `S` to aktualny stan (`events`, `clients`),
+	- w każdej gałęzi `receive` modyfikujemy stan (np. dodajemy event),
+	- i wywołujemy `loop/1` z nową wersją stanu.
+Czyli: brak zmiennych globalnych, brak mutacji “w miejscu” – tylko przekazywanie nowego `S` dalej.
+To jest esencja bezpiecznej współbieżności w Erlangu.
+
+**Funkcja `init/0` — start serwera**
+Przy starcie serwer:
+	- Tworzy puste słowniki zdarzeń i klientów.
+	- Wchodzi do pętli loop/1 z takim stanem.
+
+**Obsługa subskrypcji `{subscribe, Client}`**
+```erlang
+{Pid, MsgRef, {subscribe, Client}} ->
+    Ref = erlang:monitor(process, Client),
+    NewClients = orddict:store(Ref, Client, S#state.clients),
+    Pid ! {MsgRef, ok},
+    loop(S#state{clients=NewClients});
+```
+- serwer monitoruje klienta, aby wiedzieć, kiedy umrze,
+- zapisuje go do słownika klientów (kluczem jest referencja monitora),
+- odpowiada `{ok}`,
+- przechodzi do kolejnej iteracji pętli.
+**Walidacja daty i czasu (`valid_datetime/1`)**
+Zdarzenia są zgłaszane jako:
+`{{Year, Month, Day}, {Hour, Minute, Second}}`
+
+**Dodawanie zdarzenia `{add, Name, Description, Timeout}`**
+```erlang
+{Pid, MsgRef, {add, Name, Description, TimeOut}} ->
+    case valid_datetime(TimeOut) of
+        true ->
+            EventPid = event:start_link(Name, TimeOut),
+            NewEvents = orddict:store(
+                Name,
+                #event{name=Name, description=Description,
+                       pid=EventPid, timeout=TimeOut},
+                S#state.events),
+            Pid ! {MsgRef, ok},
+            loop(S#state{events=NewEvents});
+        false ->
+            Pid ! {MsgRef, {error, bad_timeout}},
+            loop(S)
+    end;
+```
+- Serwer sprawdza, czy czas jest poprawny (valid_datetime).
+- Jeśli tak → tworzy nowy proces zdarzenia (event:start_link).
+- Dodaje rekord zdarzenia do stanu (events).
+- Odpowiada klientowi {ok}.
+Jeśli czas niepoprawny:
+	- serwer nie tworzy procesu,
+	- wysyła {error, bad_timeout}.
+To chroni system przed „martwymi zdarzeniami”.
+
+**Anulowanie zdarzenia `{cancel, Name}`**
+```erlang
+{Pid, MsgRef, {cancel, Name}} ->
+    Events = case orddict:find(Name, S#state.events) of
+        {ok, E} ->
+            event:cancel(E#event.pid),
+            orddict:erase(Name, S#state.events);
+        error ->
+            S#state.events
+    end,
+    Pid ! {MsgRef, ok},
+    loop(S#state{events=Events});
+```
+Mechanizm:
+	- serwer sprawdza, czy zdarzenie istnieje,
+	- jeśli tak:
+		- wywołuje `event:cancel/1`, aby zatrzymać proces timera,
+		- usuwa zdarzenie z listy,
+	- jeśli nie, po prostu odpowiada `{ok}` (bo „i tak już nie istnieje”).
+	
+**Obsługa powiadomień od zdarzeń `{done, Name}`**
+```erlang
+{done, Name} ->
+    case orddict:find(Name, S#state.events) of
+        {ok, E} ->
+            send_to_clients(
+                {done, E#event.name, E#event.description},
+                S#state.clients
+            ),
+            NewEvents = orddict:erase(Name, S#state.events),
+            loop(S#state{events=NewEvents});
+        error ->
+            loop(S)
+    end;
+```
+Proces zdarzenia (timer) wysyła {done, Name}.
+Serwer:
+	- wyszukuje rekord zdarzenia,
+	- wysyła powiadomienie do KAŻDEGO klienta:
+```erlang
+{done, Name, Description}
+```
+- usuwa zdarzenie z listy.
+  
+**Funkcja `send_to_clients/2`**
+```erlang
+send_to_clients(Msg, ClientDict) ->
+    orddict:map(fun(_Ref, Pid) -> Pid ! Msg end, ClientDict).
+```
+Wysyła powiadomienie do każdego klienta.
+
+**Komunikaty systemowe**
+```erlang
+shutdown ->
+    exit(shutdown);
+```
+Proces serwera kończy pracę.
+
+**`DOWN` – klient umarł**
+```erlang
+{'DOWN', Ref, process, _Pid, _Reason} ->
+    loop(S#state{clients=orddict:erase(Ref, S#state.clients)});
+```
+Serwer usuwa klienta z listy subskrypcji —
+nie będzie wysyłał powiadomień do martwego procesu.
+
 ---
 
-## Zadania do samodzielnego wykonania
-### Zadanie 1: Prosty Magazyn (Key-Value Store)
-**Cel: Napisanie procesu serwera, który przechowuje stan (słownik/mapę) i obsługuje zapytania. To klasyka systemów rozproszonych.
-Opis problemu: Potrzebujemy prostego serwera store, który działa jak pamięć podręczna. Można w nim zapisać wartość pod danym kluczem i ją odczytać.**
-Wymagania:
--	Stwórz moduł store.
--	Proces ma przechowywać w swoim stanie mapę `(użyj #{} lub dict)`.
-- Obsłuż komunikaty:
-	- `{put, Key, Value}` – dodaje/nadpisuje element w mapie.
-	- `{Pid, Ref, {get, Key}}` – odsyła do Pid wartość `{Ref, Value}` lub `{Ref, undefined}` (jeśli klucza nie ma).
--	Napisz funkcję `start/0`, która uruchamia proces.
-Scenariusz testowy (w konsoli):**
+## Część 4: Hot Code Swapping
+Erlang posiada unikatową funkcję, której nie mają typowe języki:
+możliwość wymiany kodu działającej aplikacji bez zatrzymywania procesu.
+To kluczowe w systemach telekomunikacyjnych, bankowych i wszędzie tam, gdzie aplikacja ma działać 24/7.
+
+### Dwie wersje modułu naraz
+Code server może przechowywać:
+	- starą wersję modułu (old)
+	- nową wersję (new)
+Nowa wersja pojawia się po kompilacji:
 ```erlang
-P = store:start().
-P ! {put, rower, "niebieski"}.
-P ! {put, auto, "czerwone"}.
-P ! {self(), make_ref(), {get, rower}}.
-flush(). % Powinno zwrócić "niebieski"
+c(Module).
 ```
-### Zadanie 2: "Gorący Ziemniak" (Process Ring)
-**Cel: Praca z wieloma procesami i przekazywanie PID-ów (Topology).
-Opis problemu: Stwórz grę, w której N procesów stoi w "kółku". Proces 1 wysyła wiadomość do Procesu 2, Proces 2 do 3, ..., a Ostatni z powrotem do Procesu 1. Wiadomość ma krążyć w kółko określoną liczbę razy.**
-Wymagania:
--	Stwórz moduł ring.
--	Napisz funkcję `process_node(NextPid)`, która:
-	- Czeka na wiadomość `{token, Round}`.
-	- Jeśli `Round > 0`, wypisuje "`Proces [MójPID]` przekazuje dalej", zmniejsza `Round` o 1 i wysyła `{token, Round-1}` do `NextPid`.
-	- Jeśli `Round == 0`, wypisuje "Koniec gry!" i kończy działanie.
--	Napisz funkcję `start_game()`, która:
-	- Spawnuje 3 procesy. Musisz je połączyć tak, by P1 znał P2, P2 znał P3, a P3 znał P1.
-	- Wrzuca "ziemniaka" (wiadomość `{token, 5}`) do pierwszego procesu.
+Procesy mogą nadal działać na starej wersji, dopóki same nie przełączą się na nową.
 
-**Podpowiedź: To zadanie wymaga sprytu przy spawnowaniu. Możesz spawnować procesy "od tyłu" (najpierw ostatni, potem środkowy, potem pierwszy) lub wysłać im PID sąsiada w osobnej wiadomości konfiguracyjnej ({set_neighbor, Pid}).**
-### Zadanie 3: Load Balancer (Rozdzielacz Zadań)
-**Cel: Architektura Zarządca-Robotnicy (Manager-Worker).
-Opis problemu: Symulujemy firmę kurierską. Mamy jednego "Kierownika" (Load Balancer) i 3 "Kurierów" (Procesy Worker). Klient zleca zadanie Kierownikowi, a ten wybiera losowego kuriera do wykonania zadania.**
-Wymagania:
--	Stwórz moduł lb (Load Balancer).
--	Kurier (Worker): Prosta funkcja pętli. Czeka na `{deliver, PackageName}`. Po otrzymaniu: usypia proces na 2 sekundy (`timer:sleep(2000)` - symulacja pracy), wypisuje "Dostarczono: PackageName" i czeka na kolejne zlecenia.
--	Kierownik (Manager):
-	- Przy starcie spawnuje 3 procesy Kurierów i zapisuje ich PIDy w liście w swoim stanie.
-	- Czeka na wiadomość `{job, PackageName}`.
-	- Losuje jednego PID-a z listy (użyj `lists:nth` i `rand:uniform`) i przekazuje mu zadanie.
-- Ukryj komunikację za funkcją `lb:send_package(Name)`.
-
-**Scenariusz testowy:**
+### Przełączenie procesu na nowy kod
+Każdy proces ma swoją pętlę:
 ```erlang
-lb:start().
-lb:send_package("Paczka 1").
-lb:send_package("Paczka 2").
-lb:send_package("Paczka 3").
-% Powinieneś zobaczyć w konsoli, że różne procesy (różne PIDy) wypisują komunikaty w losowej kolejności.
-```
-**Rozwiązania:**
-### Zadanie 1:
-**Kluczowe zagadnienia: Przechowywanie stanu (mapa), obsługa synchroniczna (request-reply).**
-```erlang
--module(store).
--export([start/0, init/0, put/2, get/1]). %% API + funkcje wewnętrzne
-
-%% --- API (Ukrywanie komunikatów) ---
-
-start() ->
-    spawn(?MODULE, init, []).
-
-put(Pid, Key, Value) ->
-    Pid ! {put, Key, Value},
-    ok.
-
-get(Pid, Key) ->
-    Ref = make_ref(),
-    Pid ! {self(), Ref, {get, Key}},
-    receive
-        {Ref, Value} -> Value
-    after 2000 ->
-        {error, timeout}
-    end.
-
-%% --- Logika Procesu ---
-
-init() ->
-    %% Stanem początkowym jest pusta mapa
-    loop(#{}).
-
 loop(State) ->
-    receive
-        {put, Key, Value} ->
-            %% maps:put zwraca NOWĄ mapę z dodanym elementem
-            NewState = maps:put(Key, Value, State),
-            loop(NewState);
-
-        {Pid, Ref, {get, Key}} ->
-            %% maps:get(Key, Map, Default) - zwraca Default jeśli klucza brak
-            Value = maps:get(Key, State, undefined),
-            Pid ! {Ref, Value},
-            loop(State);
-
-        stop ->
-            ok
-    end.
+    ...
+    loop(NewState).
 ```
-### Zadanie 2:
-**Kluczowe zagadnienia: Topologia procesów. Wyzwanie: Jak zamknąć koło? Proces 1 musi znać Proces 2, P2 musi znać P3, a P3 musi znać P1. Rozwiązanie: Najpierw uruchamiamy procesy, a dopiero potem wysyłamy im wiadomość konfiguracyjną `{set_next, Pid}`.**
+Aby wejść w nową wersję modułu, wywołujemy:
 ```erlang
--module(ring).
--export([start_game/0, node_init/0]).
-
-start_game() ->
-    %% 1. Spawnowanie procesów (na razie nie wiedzą o sobie)
-    P1 = spawn(?MODULE, node_init, []),
-    P2 = spawn(?MODULE, node_init, []),
-    P3 = spawn(?MODULE, node_init, []),
-
-    io:format("P1: ~p, P2: ~p, P3: ~p~n", [P1, P2, P3]),
-
-    %% 2. Konfiguracja sąsiadów (zamykamy koło)
-    P1 ! {set_next, P2},
-    P2 ! {set_next, P3},
-    P3 ! {set_next, P1},
-
-    %% 3. Start gry - wrzucamy żeton do P1 (obiegnie koło 5 razy)
-    P1 ! {token, 15}, %% 15 przeskoków = 5 pełnych okrążeń (dla 3 graczy)
-    ok.
-
-%% Faza inicjalizacji - czekamy na sąsiada
-node_init() ->
-    receive
-        {set_next, NextPid} ->
-            io:format("~p: Mam sąsiada ~p. Gotowy!~n", [self(), NextPid]),
-            node_loop(NextPid)
-    end.
-
-%% Główna pętla gry
-node_loop(NextPid) ->
-    receive
-        {token, 0} ->
-            io:format("~p: Token padł u mnie. Koniec gry!~n", [self()]);
-        
-        {token, Round} ->
-            io:format("~p: Dostałem (Round: ~p). Przekazuję do ~p~n", [self(), Round, NextPid]),
-            timer:sleep(500), %% Żebyśmy zdążyli zobaczyć logi (opcjonalne)
-            NextPid ! {token, Round - 1},
-            node_loop(NextPid)
-    end.
+?MODULE:loop(State).
 ```
-### Zadanie 3:
-**Kluczowe zagadnienia: Architektura Manager-Worker, losowość (rand).**
+To jest zewnętrzne wywołanie → proces natychmiast zaczyna działać w nowym kodzie, ale z tym samym stanem.
+
+**Uwaga: 3-cia wersja modułu = zabity proces**
+VM trzyma max 2 wersje:
+	- old
+	- new
+Jeśli pojawi się **trzecia**, procesy nadal działające na najstarszej wersji są ubijane, bo VM zakłada, że nie potrafią się zaktualizować.
+
+### Przykład pełnego upgrade’u
 ```erlang
--module(lb).
--export([start/0, send_package/1, manager_init/0, worker_loop/1]).
+-module(hotload).
+-export([server/1, upgrade/1]).
 
-%% --- API ---
-
-start() ->
-    %% Rejestrujemy managera pod nazwą 'manager', żeby łatwiej było słać do niego
-    register(manager, spawn(?MODULE, manager_init, [])).
-
-send_package(PackageName) ->
-    manager ! {job, PackageName},
-    ok.
-
-%% --- Manager (Load Balancer) ---
-
-manager_init() ->
-    %% Manager uruchamia swoich pracowników
-    W1 = spawn(?MODULE, worker_loop, [1]),
-    W2 = spawn(?MODULE, worker_loop, [2]),
-    W3 = spawn(?MODULE, worker_loop, [3]),
-    Workers = [W1, W2, W3],
-    io:format("Manager wystartował z pracownikami: ~p~n", [Workers]),
-    manager_loop(Workers).
-
-manager_loop(Workers) ->
+server(State) ->
     receive
-        {job, PackageName} ->
-            %% Losowanie pracownika
-            Index = rand:uniform(length(Workers)), %% Losuje od 1 do 3
-            SelectedWorker = lists:nth(Index, Workers),
-            
-            io:format("Manager: Zlecam '~s' do pracownika nr ~p~n", [PackageName, Index]),
-            SelectedWorker ! {deliver, PackageName},
-            manager_loop(Workers)
+        update ->
+            NewState = ?MODULE:upgrade(State),
+            ?MODULE:server(NewState);    %% przejście do nowego kodu
+        SomeMessage ->
+            server(State)
     end.
 
-%% --- Worker (Kurier) ---
-
-worker_loop(Id) ->
-    receive
-        {deliver, PackageName} ->
-            io:format("Kurier ~p: Odbieram paczkę '~s'...~n", [Id, PackageName]),
-            timer:sleep(2000), %% Symulacja ciężkiej pracy (2 sekundy)
-            io:format("Kurier ~p: Dostarczono '~s'!~n", [Id, PackageName]),
-            worker_loop(Id)
-    end.
+upgrade(OldState) ->
+    OldState.   %% ewentualna transformacja stanu
 ```
-**Jak to testować?**
+Działanie:
+	- po `update` proces wywołuje `?MODULE:server`, czyli wskakuje w nową wersję modułu,
+	- stan pozostaje (również może zostać przekształcony w `upgrade/1`),
+	- nie trzeba restartować systemu.
 
-**Zalecam testowanie Load Balancera w taki sposób:**
+---
+
+## Część 5: Supervisor
+W aplikacjach współbieżnych w Erlangu procesy mogą umierać w każdej chwili – to normalne i akceptowane zachowanie.
+Dlatego potrzebujemy mechanizmu, który pilnuje innych procesów i automatycznie je restartuje, jeśli padną.
+
+**Supervisor:**
+	- uruchamia proces, który ma nadzorować (np. nasz event server),
+	- monitoruje go,
+	- jeśli proces padnie z dowolnego powodu → restartuje go automatycznie,
+	- jeśli supervisor dostanie sygnał shutdown → kończy pracę i zabija swoje dziecko.
+To przenosi odpowiedzialność za stabilność aplikacji z procesu na superwizora.
+
+**Funkcje `start/2` i `start_link/2` uruchamiają proces supervisora:**
 ```erlang
-c(lb).
-lb:start().
-% Wysyłamy szybko 3 paczki - powinny trafić do różnych (losowych) kurierów
-lb:send_package("Paczka A").
-lb:send_package("Paczka B").
-lb:send_package("Paczka C").
-% Konsola powinna pokazać "Odbieram..." dla wszystkich od razu,
-% a po 2 sekundach "Dostarczono..." dla wszystkich.
-% To dowodzi, że pracują równolegle!
-```
+-module(sup).
+-export([start/2, start_link/2, init/1, loop/1]).
 
-**Podsumowanie dla studentów (Wnioski)**
-1.	Podział na procesy: Serwer zarządza logiką, Eventy zarządzają czasem. To pozwala na skalowanie i izolację błędów.
-2.	Stan: Jest prywatny dla procesu.
-3.	Protokół: Należy go zdefiniować przed kodowaniem.
-4.	Limity: Nawet w potężnym Erlangu są limity (50 dni), które trzeba obejść inżyniersko.
-5.	Hot Code Swap: Możemy naprawiać błędy bez zatrzymywania systemu.
+start(Mod, Args) ->
+    spawn(?MODULE, init, [{Mod, Args}]).
+
+start_link(Mod, Args) ->
+    spawn_link(?MODULE, init, [{Mod, Args}]).
+```
+**init/1**
+Supervisor ustawia `trap_exit`, żeby móc przechwytywać zakończenia procesów:
+```erlang
+init({Mod, Args}) ->
+    process_flag(trap_exit, true),
+    loop({Mod, start_link, Args}).
+```
+**`loop/1` – serce supervisora**
+```erlang
+loop({M,F,A}) ->
+    Pid = apply(M,F,A),
+    receive
+        {'EXIT', Pid, shutdown} ->
+            exit(shutdown);   % supervisor też umiera
+        {'EXIT', Pid, Reason} ->
+            io:format("Process ~p exited for reason ~p~n", [Pid, Reason]),
+            loop({M,F,A})     % restart dziecka!
+    end.
+```
+- Supervisor uruchamia proces dziecka.
+- Jeśli dziecko umiera:
+	- Reason = shutdown → supervisor kończy pracę (to celowe).
+	- Reason ≠ shutdown → drukuje powód i restartuje proces.
+ - 
+**Przykład działania:**
+1. Kompilacja modułów:
+```erlang
+1> c(eserv), c(sup).
+{ok,eserv}
+{ok,sup}
+```
+2. Uruchamiamy supervisora
+```erlang
+2> SupPid = sup:start(eserv, []).
+<0.43.0>
+```
+- Supervisor startuje i od razu uruchamia proces `eserv` jako swoje dziecko.
+- Zwracany jest PID supervisora — zapisujemy go w zmiennej `SupPid`.
+- Supervisor ustawia `trap_exit`, więc będzie odbierał komunikaty `'EXIT', ....`
+- 
+3. Sprawdzamy, czy event server działa
+```erlang
+3> whereis(eserv).
+<0.44.0>
+```
+- `eserv` został poprawnie uruchomiony przez supervisora.
+- Widzimy jego PID `(<0.44.0>)`.
+4. Zabijamy event server
+```erlang
+4> exit(whereis(eserv), die).
+true
+```
+- Wysyłamy procesowi eserv sygnał zakończenia z powodem die.
+- Event server umiera NATYCHMIAST.
+- Supervisor dostaje komunikat:
+```erlang
+{'EXIT', <0.44.0>, die}
+```
+Po czym uruchamia nową kopię event servera
+
+5. Sprawdzamy, czy żyje nowy event server
+```erlang
+5> whereis(eserv).
+<0.48.0>
+```
+6. Zabijamy supervisora
+```erlang
+6> exit(SupPid, shutdown).
+true
+```
+Kiedy supervisor umiera - zabija swoje dziecko.
+
+7. Sprawdzamy, czy dziecko również zniknęło
+```erlang
+7> whereis(eserv).
+undefined
+```
+Event server nie istnieje.
+Supervisor przestał działać, więc jego dziecko również.
+
+---
+
+### Zadania do samodzielnego wykonania
