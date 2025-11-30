@@ -200,8 +200,8 @@ Serwer dogaduje się z klientami zawsze w tym samym formacie:
 }).
 ```
 Ten rekord przechowuje:
-	- `events` – informacje o aktywnych zdarzeniach
-	- `clients` – PID-y klientów, którzy chcą dostawać powiadomienia
+- `events` – informacje o aktywnych zdarzeniach
+- `clients` – PID-y klientów, którzy chcą dostawać powiadomienia
 	
 **Rekord event – opis jednego wydarzenia**
 ```erlang
