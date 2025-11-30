@@ -3,6 +3,7 @@
 ## CZĘŚĆ 1: Teoria i Projektowanie
 
 ### 1.1. Definicja problemu
+
 Chcemy napisać system przypomnień (Reminder App).
 
 #### Wymagania:
@@ -19,6 +20,7 @@ Chcemy napisać system przypomnień (Reminder App).
 	- aktualizację kodu podczas działania (hot code reload).
 
 ### 1.2. Architektura w Erlang
+
 W Erlangu system dzielimy na niezależne procesy, które nie dzielą pamięci i komunikują się jedynie wiadomościami.
 
 1. Klient (Client)
@@ -45,7 +47,7 @@ Zachowanie:
 	- jeśli dostanie `cancel`, kończy się natychmiast.
 Dzięki temu awaria pojedynczego wydarzenia nie wpływa na resztę systemu.
 
-### Projektowanie Protokołu
+### 1.3. Projektowanie Protokołu
 
 - **Klient -> Serwer:**
 	- `{subscribe, Pid}` - Zapisz mnie jako odbiorcę powiadomień
@@ -60,69 +62,76 @@ Dzięki temu awaria pojedynczego wydarzenia nie wpływa na resztę systemu.
 
 ---
 
-## CZĘŚĆ 2: Implementacja "Robotnika" (Moduł event)
+## CZĘŚĆ 2: Fundamenty i Moduł zdarzeń
 
-### 2.1. Wersja naiwna
-Piszemy prosty proces, który czeka.
+### 2.1. Przygotowanie projektu
+Na początku tworzymy standardową strukturę katalogów używaną w projektach Erlang:
+```css
+ebin/
+include/
+priv/
+src/
+```
+- `src/` – tutaj umieszczamy cały kod `.erl`.
+- `ebin/` – tu trafią skompilowane pliki `.beam`.
+- `include/` – nagłówki `.hrl`.
+- `priv/` – pliki dodatkowe.
+
+### 2.2. Tworzymy moduł zdarzeń (event.erl)
+
+Moduł zdarzeń odpowiada za działanie pojedynczego timera.
+
+**Tworzymy szkic funkcji `loop/1`**
+Najpierw definiujemy **pętlę procesu**, która będzie wykonywać się w każdym „timerze” wydarzenia:
+
 ```erlang
-%%writefile event.erl
--module(event).
--compile(export_all).
--record(state, {server, name, to_go=0}).
-
-loop(S = #state{server=Server, to_go=ToGo}) ->
+loop(State) ->
     receive
-        {Server, Ref, cancel} -> Server ! {Ref, ok}
-    after ToGo * 1000 ->
-        Server ! {done, S#state.name}
+        {Server, Ref, cancel} ->
+            ...
+    after Delay ->
+            ...
     end.
 ```
+Oznacz to, że:
+	- Proces czeka na wiadomość cancel, która pozwala przerwać wydarzenie.
+	- Jeśli nie dostanie anulowania, po czasie Delay wykona kod w sekcji after, czyli zgłosi, że wydarzenie się zakończyło.
+	- Wszystko to dzieje się wewnątrz jednego lightweight procesu Erlanga.
 
-### 2.2. Problem inżynierski: Limit 50 dni (Ważne!)
-
-Pytanie: "Co się stanie, jeśli ustawię przypomnienie na za 2 lata?"
-Odp: Erlang crashnie. Wartość after w milisekundach jest ograniczona do około 50 dni (dokładnie $2^{32}$ ms)5.
-
-Zadanie: Jak to naprawić bez zmieniania języka?
-Rozwiązanie: Musimy podzielić długi czas na pętle po 49 dni.
-Funkcja normalize:
+**Potrzebujemy stanu — tworzymy rekord `state`**
+Aby ten proces wiedział:
+	- ile czasu ma czekać,
+	- jak nazywa się wydarzenie,
+	- do kogo ma wysłać powiadomienie,
 ```erlang
-normalize(N) ->
-    Limit = 49*24*60*60,
-    [N rem Limit | lists:duplicate(N div Limit, Limit)].
+-module(event).
+-compile(export_all).
+-record(state, {
+    server,
+    name = "",
+    to_go = 0
+}).
 ```
-> **Tłumaczenie:** Jeśli mamy czekać 100 dni, a limit to 49, tworzymy listę [2, 49, 49] (kolejność nie ma znaczenia przy sumowaniu, ale technicznie czekamy kawałkami).
 
-### Poprawiona pętla loop
-Musimy obsłużyć listę czasów zamiast jednej liczby.
+**Uzupełniamy pętlę loop/1**
 ```erlang
-loop(S = #state{server=Server, to_go=[T|Next]}) ->
+loop(S = #state{server=Server}) ->
     receive
         {Server, Ref, cancel} ->
             Server ! {Ref, ok}
-    after T * 1000 ->
-        if
-            Next =:= [] -> Server ! {done, S#state.name};
-            true -> loop(S#state{to_go=Next})
-        end
+    after S#state.to_go * 1000 ->
+            Server ! {done, S#state.name}
     end.
 ```
-> Teraz nasz system jest robust (solidny).
+Dodaliśmy:
+✔ `#state{server=Server}` - pobiera PID serwera, żeby móc wysyłać mu odpowiedź
+✔ `S#state.to_go * 1000` – zamieniamy sekundy na milisekundy.
+✔ Powiadomienie `done` – po upływie czasu wysyłamy do serwera komunikat:
+`{done, Name}`
+To informuje go, że wydarzenie się zakończyło.
 
-### 2.4. Finalne funkcje startowe
-Dodajemy start i init, które używają normalizacji.
-```erlang
-start(EventName, Delay) ->
-    spawn(?MODULE, init, [self(), EventName, Delay]).
 
-start_link(EventName, Delay) ->
-    spawn_link(?MODULE, init, [self(), EventName, Delay]).
 
-init(Server, EventName, Delay) ->
-    loop(#state{server=Server, name=EventName, to_go=normalize(Delay)}).
-```
-
----
 ## CZĘŚĆ 3: Serwer i Zarządzanie Stanem
 
 ### 3.1. Struktura danych
