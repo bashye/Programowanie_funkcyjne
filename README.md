@@ -22,43 +22,44 @@ Chcemy napisać system przypomnień (Reminder App).
 W Erlangu system dzielimy na niezależne procesy, które nie dzielą pamięci i komunikują się jedynie wiadomościami.
 
 1. Klient (Client)
-- wysyła żądania: `add`, `cancel`, `subscribe`, `shutdown`,
-- odbiera powiadomienia o zakończonych wydarzeniach,
-- może monitorować serwer (wykryć awarię).
+	- wysyła żądania: `add`, `cancel`, `subscribe`, `shutdown`,
+	- odbiera powiadomienia o zakończonych wydarzeniach,
+	- może monitorować serwer (wykryć awarię).
 Każdy klient to osobny proces.
 
 2. Serwer Wydarzeń (Event Server)
-- Centralny proces zarządzający systemem.
-- przyjmuje subskrypcje klientów,
-- uruchamia procesy wydarzeń,
-- przekazuje powiadomienia do klientów,
-- obsługuje anulowanie i zamknięcie systemu,
-- może mieć przeładowany kod w trakcie działania.
+	- Centralny proces zarządzający systemem.
+	- przyjmuje subskrypcje klientów,
+	- uruchamia procesy wydarzeń,
+	- przekazuje powiadomienia do klientów,
+	- obsługuje anulowanie i zamknięcie systemu,
+	- może mieć przeładowany kod w trakcie działania.
 Serwer nie odlicza czasu — to zadanie procesów wydarzeń.
 
 3. Procesy Wydarzeń (Event Processes)
 Każde wydarzenie działa jako osobny, lekki proces.
 Zachowanie:
-- czeka określony czas (`receive after`),
-- wysyła do serwera: `{done, Id}`,
-- kończy działanie,
-- jeśli dostanie `cancel`, kończy się natychmiast.
+	- czeka określony czas (`receive after`),
+	- wysyła do serwera: `{done, Id}`,
+	- kończy działanie,
+	- jeśli dostanie `cancel`, kończy się natychmiast.
 Dzięki temu awaria pojedynczego wydarzenia nie wpływa na resztę systemu.
 
 ### Projektowanie Protokołu
 
 - **Klient -> Serwer:**
 	- `{subscribe, Pid}` - Zapisz mnie jako odbiorcę powiadomień
-	- `{add, Name, Description, TimeOut}`
-	- `{cancel, Name}`
+	- `{add, Name, Description, TimeOut}` - Utwórz nowe wydarzenie
+	- `{cancel, Name}` - Anuluj wydarzenie
 - **Serwer -> Klient:**
-	- `{Ref, ok}` lub `{error, Reason}`
-	- `{done, Name, Description}` (Gdy czas minie)
+	- `{Ref, ok}` lub `{error, Reason}` - Potwierdzenie wykonania operacji lub błąd
+	- `{done, Name, Description}` Powiadomienie, że wydarzenie się wykonało
 - **Serwer <-> Proces Wydarzenia (Wewnętrzne):**
-	- Serwer -> Proces: cancel
-	- Proces -> Serwer: {done, Id}
+	- Serwer -> Proces: `cancel` - Proces zdarzenia ma się zakończyć
+	- Proces -> Serwer: `{done, Id}` - Czas minął, powiadom klientów
 
 ---
+
 ## CZĘŚĆ 2: Implementacja "Robotnika" (Moduł event)
 
 ### 2.1. Wersja naiwna
