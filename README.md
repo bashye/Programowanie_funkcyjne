@@ -81,7 +81,7 @@ src/
 
 Moduł zdarzeń odpowiada za działanie pojedynczego timera.
 
-####**Tworzymy szkic funkcji `loop/1`**
+###**Tworzymy szkic funkcji `loop/1`**
 Najpierw definiujemy **pętlę procesu**, która będzie wykonywać się w każdym „timerze” wydarzenia:
 
 ```erlang
@@ -98,7 +98,7 @@ Oznacz to, że:
 	- Jeśli nie dostanie anulowania, po czasie Delay wykona kod w sekcji after, czyli zgłosi, że wydarzenie się zakończyło.
 	- Wszystko to dzieje się wewnątrz jednego lightweight procesu Erlanga.
 
-####**Potrzebujemy stanu — tworzymy rekord `state`**
+###**Potrzebujemy stanu — tworzymy rekord `state`**
 Aby ten proces wiedział:
 	- ile czasu ma czekać,
 	- jak nazywa się wydarzenie,
@@ -113,7 +113,7 @@ Aby ten proces wiedział:
 }).
 ```
 
-####**Uzupełniamy pętlę loop/1**
+###**Uzupełniamy pętlę loop/1**
 ```erlang
 loop(S = #state{server=Server}) ->
     receive
@@ -138,7 +138,7 @@ rr(event, state).
 Pid = spawn(event, loop, [#state{server=self(), name="test", to_go=5}]).
 flush().
 ```
-####**Problem ~49dni**
+###**Problem ~49dni**
 
 W Erlangu limit czasu w receive … after wynosi około 49 dni (w milisekundach).
 Jeśli chcemy ustawić timer np. na rok, otrzymamy błąd:
@@ -201,8 +201,8 @@ Serwer dogaduje się z klientami zawsze w tym samym formacie:
 }).
 ```
 Ten rekord przechowuje:
-	- events – informacje o aktywnych zdarzeniach
-	- clients – PID-y klientów, którzy chcą dostawać powiadomienia
+	- `events` – informacje o aktywnych zdarzeniach
+	- `clients` – PID-y klientów, którzy chcą dostawać powiadomienia
 	
 ###3.3: Rekord event – opis jednego wydarzenia
 ```erlang
@@ -214,56 +214,15 @@ Ten rekord przechowuje:
 }).
 ```
 Dla każdego zdarzenia serwer pamięta:
-	- `name – identyfikator,
-	- `description` – treść powiadomienia,
-	- `pid` – PID procesu timera (`event.erl),
-	- `timeout` – kiedy ma się wykonać.
+	- name – identyfikator,
+	- description – treść powiadomienia,
+	- pid – PID procesu timera (`event.erl),
+	- timeout – kiedy ma się wykonać.
 Dzięki temu:
 	- po nazwie możemy znaleźć PID procesu i np. je anulować,
 	- po done, Name możemy dobrać opis z rekordu i wysłać go klientom.
 ---
-## CZĘŚĆ 4: Testowanie
 
-### 4.1. Test manualny w Notebooku
-```erlang
-c(event).
-c(evserv).
-evserv:start().
-evserv:subscribe(self()).
-evserv:add_event("Test", "Opis", 5).
-%% Czekamy 5 sekund...
-flush().
-```
----
-## CZĘŚĆ 5: Supervision
-System jest dobry, ale co jak serwer padnie? Potrzebujemy "Nadzorcy" (Supervisor).
-### 5.1. Prosty Supervisor
-Supervisor to proces, którego jedynym zadaniem jest pilnowanie, czy inny proces żyje. Jeśli tamten umrze, supervisor go wskrzesza.
-```erlang
-%%writefile sup.erl
--module(sup).
--export([start/2, init/1, loop/1]).
-
-start(Mod, Args) ->
-    spawn(?MODULE, init, [{Mod, Args}]).
-
-init({Mod, Args}) ->
-    process_flag(trap_exit, true), %% Chcemy dostać info o śmierci dziecka
-    loop({Mod, Args}).
-
-loop({Mod, Args}) ->
-    Pid = apply(Mod, start_link, Args), %% Startujemy dziecko
-    receive
-        {'EXIT', Pid, Reason} ->
-            io:format("Proces ~p umarł z powodu ~p. Restartuję...~n", [Pid, Reason]),
-            loop({Mod, Args}) %% Rekurencyjny restart
-    end.
-```
-### 5.2. Symulacja awarii
--	Uruchom sup:start(evserv, []).
--	Zabij serwer komendą exit(whereis(evserv), kill)..
--	Zobacz, że Supervisor natychmiast uruchomił nową instancję.
----
 ## Zadania do samodzielnego wykonania
 ### Zadanie 1: Prosty Magazyn (Key-Value Store)
 **Cel: Napisanie procesu serwera, który przechowuje stan (słownik/mapę) i obsługuje zapytania. To klasyka systemów rozproszonych.
