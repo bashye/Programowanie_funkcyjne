@@ -93,10 +93,9 @@ loop(State) ->
             ...
     end.
 ```
-Oznacz to, że:
-	- Proces czeka na wiadomość cancel, która pozwala przerwać wydarzenie.
-	- Jeśli nie dostanie anulowania, po czasie Delay wykona kod w sekcji after, czyli zgłosi, że wydarzenie się zakończyło.
-	- Wszystko to dzieje się wewnątrz jednego lightweight procesu Erlanga.
+- Proces czeka na wiadomość cancel, która pozwala przerwać wydarzenie.
+- Jeśli nie dostanie anulowania, po czasie Delay wykona kod w sekcji after, czyli zgłosi, że wydarzenie się zakończyło.
+- Wszystko to dzieje się wewnątrz jednego lightweight procesu Erlanga.
 
 **Potrzebujemy stanu — tworzymy rekord `state`**
 Aby ten proces wiedział:
