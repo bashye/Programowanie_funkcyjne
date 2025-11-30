@@ -81,7 +81,7 @@ src/
 
 Moduł zdarzeń odpowiada za działanie pojedynczego timera.
 
-###**Tworzymy szkic funkcji `loop/1`**
+**Tworzymy szkic funkcji `loop/1`**
 Najpierw definiujemy **pętlę procesu**, która będzie wykonywać się w każdym „timerze” wydarzenia:
 
 ```erlang
@@ -98,7 +98,7 @@ Oznacz to, że:
 	- Jeśli nie dostanie anulowania, po czasie Delay wykona kod w sekcji after, czyli zgłosi, że wydarzenie się zakończyło.
 	- Wszystko to dzieje się wewnątrz jednego lightweight procesu Erlanga.
 
-###**Potrzebujemy stanu — tworzymy rekord `state`**
+**Potrzebujemy stanu — tworzymy rekord `state`**
 Aby ten proces wiedział:
 	- ile czasu ma czekać,
 	- jak nazywa się wydarzenie,
@@ -113,7 +113,7 @@ Aby ten proces wiedział:
 }).
 ```
 
-###**Uzupełniamy pętlę loop/1**
+**Uzupełniamy pętlę `loop/1`**
 ```erlang
 loop(S = #state{server=Server}) ->
     receive
@@ -138,7 +138,7 @@ rr(event, state).
 Pid = spawn(event, loop, [#state{server=self(), name="test", to_go=5}]).
 flush().
 ```
-###**Problem ~49dni**
+**Problem ~49dni**
 
 W Erlangu limit czasu w receive … after wynosi około 49 dni (w milisekundach).
 Jeśli chcemy ustawić timer np. na rok, otrzymamy błąd:
@@ -180,9 +180,9 @@ loop(S = #state{server=Server, to_go=[T|Next]}) ->
     end.
 ```
 
-##CZĘŚĆ 3: Moduł Server
+## CZĘŚĆ 3: Moduł Server
 
-###3.1: Format wiadomości {Pid, Ref, Message}
+### 3.1: Format wiadomości {Pid, Ref, Message}
 Serwer dogaduje się z klientami zawsze w tym samym formacie:
 ```erlang
 {Pid, MsgRef, {subscribe, Client}}
@@ -193,7 +193,7 @@ Serwer dogaduje się z klientami zawsze w tym samym formacie:
 - `MsgRef` – unikalna referencja odpowiedzi (klient wie, której odpowiedzi dotyczy).
 - `{...}` – właściwa treść polecenia (subscribe/add/cancel).
 
-###3.2: Rekord state – stan całego serwera
+### 3.2: Rekord state – stan całego serwera
 ```erlang
 -record(state, {
     events,   %% lista zdarzeń
@@ -204,7 +204,7 @@ Ten rekord przechowuje:
 	- `events` – informacje o aktywnych zdarzeniach
 	- `clients` – PID-y klientów, którzy chcą dostawać powiadomienia
 	
-###3.3: Rekord event – opis jednego wydarzenia
+### 3.3: Rekord event – opis jednego wydarzenia
 ```erlang
 -record(event, {
     name = "",
