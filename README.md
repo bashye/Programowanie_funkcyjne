@@ -526,7 +526,7 @@ Supervisor przestał działać, więc jego dziecko również.
 ### **ZADANIE 2 – Proces z timeoutem**
 **Polecenie:**
 1. Napisz proces, który:
-	- czeka 5 sekund na wiadomość `{ping, Pid}`,
+	- czeka 20 sekund na wiadomość `{ping, Pid}`,
 	- jeśli ją dostanie → odsyła `{pong}`,
 	- jeśli *nie* dostanie → wypisuje "`timeout`" i kończy działanie.
 2. Uruchom proces i przetestuj oba przypadki:
@@ -631,7 +631,7 @@ loop() ->
     receive
         {ping, From} ->
             From ! pong
-    after 5000 ->
+    after 20000 ->
             io:format("timeout~n")
     end.
 ```
