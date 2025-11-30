@@ -793,13 +793,13 @@ Testy:
 
 %% --- Uruchamiamy timery równolegle ---
 
-%% 3> Start timera "A" ustawionego na 2 sekundy
-3> ex4_timer:start_timer("A", 2, Self).
+%% 3> Start timera "A" ustawionego na 20 sekundy
+3> ex4_timer:start_timer("A", 20, Self).
 %% Wynik (PID procesu timera będzie różny):
 <0.101.0>
 
-%% 4> Start timera "B" ustawionego na 5 sekund
-4> ex4_timer:start_timer("B", 5, Self).
+%% 4> Start timera "B" ustawionego na 30 sekund
+4> ex4_timer:start_timer("B", 30, Self).
 %% Wynik:
 <0.102.0>
 
@@ -807,12 +807,12 @@ Testy:
 
 %% 5> Odbieramy pierwszą wiadomość
 5> receive Msg1 -> Msg1 end.
-%% Wynik po ok. 2 sekundach:
+%% Wynik po ok. 20 sekundach:
 {done,"A"}
 
 %% 6> Odbieramy drugą wiadomość
 6> receive Msg2 -> Msg2 end.
-%% Wynik po ok. 5 sekundach od startu:
+%% Wynik po ok. 30 sekundach od startu:
 {done,"B"}
 
 %% Timery działają równolegle — krótszy ("A") kończy się pierwszy,
