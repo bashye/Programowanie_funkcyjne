@@ -62,7 +62,7 @@ Dzięki temu awaria pojedynczego wydarzenia nie wpływa na resztę systemu.
 
 ---
 
-## CZĘŚĆ 2: Fundamenty i Moduł zdarzeń
+## CZĘŚĆ 2: Fundamenty i Moduł Event
 
 ### 2.1. Przygotowanie projektu
 Na początku tworzymy standardową strukturę katalogów używaną w projektach Erlang:
@@ -81,7 +81,7 @@ src/
 
 Moduł zdarzeń odpowiada za działanie pojedynczego timera.
 
-**Tworzymy szkic funkcji `loop/1`**
+####**Tworzymy szkic funkcji `loop/1`**
 Najpierw definiujemy **pętlę procesu**, która będzie wykonywać się w każdym „timerze” wydarzenia:
 
 ```erlang
@@ -98,7 +98,7 @@ Oznacz to, że:
 	- Jeśli nie dostanie anulowania, po czasie Delay wykona kod w sekcji after, czyli zgłosi, że wydarzenie się zakończyło.
 	- Wszystko to dzieje się wewnątrz jednego lightweight procesu Erlanga.
 
-**Potrzebujemy stanu — tworzymy rekord `state`**
+####**Potrzebujemy stanu — tworzymy rekord `state`**
 Aby ten proces wiedział:
 	- ile czasu ma czekać,
 	- jak nazywa się wydarzenie,
@@ -113,7 +113,7 @@ Aby ten proces wiedział:
 }).
 ```
 
-**Uzupełniamy pętlę loop/1**
+####**Uzupełniamy pętlę loop/1**
 ```erlang
 loop(S = #state{server=Server}) ->
     receive
@@ -124,91 +124,103 @@ loop(S = #state{server=Server}) ->
     end.
 ```
 Dodaliśmy:
-✔ `#state{server=Server}` - pobiera PID serwera, żeby móc wysyłać mu odpowiedź
-✔ `S#state.to_go * 1000` – zamieniamy sekundy na milisekundy.
-✔ Powiadomienie `done` – po upływie czasu wysyłamy do serwera komunikat:
-`{done, Name}`
+	- `#state{server=Server}` - pobiera PID serwera, żeby móc wysyłać mu odpowiedź
+	- `S#state.to_go * 1000` – zamieniamy sekundy na milisekundy.
+	- Powiadomienie `done` – po upływie czasu wysyłamy do serwera komunikat:
+		`{done, Name}`
 To informuje go, że wydarzenie się zakończyło.
 
-
-
-## CZĘŚĆ 3: Serwer i Zarządzanie Stanem
-
-### 3.1. Struktura danych
-Serwer musi pamiętać stan. Nie używamy bazy danych, tylko pamięci procesu.
+Test:
 ```erlang
--record(state, {events, clients}).
-%% events: lista krotek {Name, Pid}
-%% clients: lista Pid
+c(event).
+rr(event, state).
+
+Pid = spawn(event, loop, [#state{server=self(), name="test", to_go=5}]).
+flush().
 ```
-### 3.2. Implementacja evserv.erl
+####**Problem ~49dni**
+
+W Erlangu limit czasu w receive … after wynosi około 49 dni (w milisekundach).
+Jeśli chcemy ustawić timer np. na rok, otrzymamy błąd:
+```
+timeout_value error
+```
+To dlatego, że Erlang nie akceptuje zbyt dużej liczby milisekund naraz.
+
+**Dzielenie czasu na mniejsze części**
+Zamiast czekać na cały czas jednorazowo, dzielimy timeout na porcje po 49 dni.
+Do tego służy funkcja `normalize/1`:
 ```erlang
-%%writefile evserv.erl
--module(evserv).
--compile(export_all).
-
--record(state, {events, clients}).
-
-start() ->
-    register(?MODULE, spawn(?MODULE, loop, [#state{events=[], clients=[]}])).
-
-loop(S = #state{events=Events, clients=Clients}) ->
+normalize(N) ->
+    Limit = 49*24*60*60,     % sekundy
+    [N rem Limit | lists:duplicate(N div Limit, Limit)].
+```
+- Limit = maksymalny czas jednego odliczania (49 dni).
+- Jeśli czas jest większy:
+	- dzielimy go na części po 49 dni,
+	- ostatnia część to reszta.
+- Wynikiem jest lista timeoutów, np.:
+```css
+98 dni → [49, 49]
+100 dni → [49, 49, 2]
+```
+**Zmiana pętli `loop/1`: obsługa listy timeoutów**
+```erlang
+loop(S = #state{server=Server, to_go=[T|Next]}) ->
     receive
-        %% SUBSKRYPCJA
-        {Pid, Ref, {subscribe, Client}} ->
-            erlang:monitor(process, Client), %% [cite: 344] Monitorujemy klienta!
-            NewClients = [Client | Clients],
-            Pid ! {Ref, ok},
-            loop(S#state{clients=NewClients});
-
-        %% DODAWANIE
-        {Pid, Ref, {add, Name, Description, TimeOut}} ->
-            %% Tu można dodać walidację czasu (zadanie dodatkowe)
-            EventPid = event:start_link(Name, TimeOut), %% [cite: 374] Linkujemy proces!
-            NewEvents = [{Name, EventPid} | Events],
-            Pid ! {Ref, ok},
-            loop(S#state{events=NewEvents});
-
-        %% ANULOWANIE
-        {Pid, Ref, {cancel, Name}} ->
-            NewEvents = case lists:keyfind(Name, 1, Events) of
-                {Name, EventPid} ->
-                    event:cancel(EventPid), %% [cite: 395] Wywołujemy funkcję cancel w module event
-                    lists:keydelete(Name, 1, Events);
-                false ->
-                    Events
-            end,
-            Pid ! {Ref, ok},
-            loop(S#state{events=NewEvents});
-
-        %% DONE - Wiadomość od procesu event
-        {done, Name} ->
-            %% Wysyłamy info do wszystkich klientów
-            lists:foreach(fun(C) -> C ! {done, Name} end, Clients),
-            NewEvents = lists:keydelete(Name, 1, Events),
-            loop(S#state{events=NewEvents});
-
-        %% KLIENT PADŁ (Obsługa Monitora)
-        {'DOWN', Ref, process, _Pid, _Reason} ->
-             %% Usuwamy martwego klienta, żeby nie wysyłać w próżnię [cite: 432]
-             loop(S#state{clients=Clients}); %% Uproszczenie: normalnie usuwamy po Ref
-
-        shutdown ->
-            exit(shutdown);
-        
-        code_change ->
-            ?MODULE:loop(S); %% [cite: 425] Hot Code Swapping!
-
-        Unknown ->
-            io:format("Unknown: ~p~n", [Unknown]),
-            loop(S)
+        {Server, Ref, cancel} ->
+            Server ! {Ref, ok}
+    after T*1000 ->
+        case Next of
+            [] ->
+                Server ! {done, S#state.name};
+            _ ->
+                loop(S#state{to_go=Next})
+        end
     end.
-
 ```
-### 3.3. Ukrywanie wiadomości (API)
-Dlaczego to ważne? Bo jeśli zmienimy format wiadomości wewnętrznych, nie chcemy psuć kodu u wszystkich klientów.
-Zadanie: Dopisz funkcje add_event/3 i subscribe/1 w module evserv, które ukrywają ! i receive8.
 
+##CZĘŚĆ 3: Moduł Server
+
+###3.1: Format wiadomości {Pid, Ref, Message}
+Serwer dogaduje się z klientami zawsze w tym samym formacie:
+```erlang
+{Pid, MsgRef, {subscribe, Client}}
+{Pid, MsgRef, {add, Name, Description, TimeOut}}
+{Pid, MsgRef, {cancel, Name}}
+```
+- `Pid` – kto wysłał (klient / inny proces).
+- `MsgRef` – unikalna referencja odpowiedzi (klient wie, której odpowiedzi dotyczy).
+- `{...}` – właściwa treść polecenia (subscribe/add/cancel).
+
+###3.2: Rekord state – stan całego serwera
+```erlang
+-record(state, {
+    events,   %% lista zdarzeń
+    clients   %% lista klientów
+}).
+```
+Ten rekord przechowuje:
+	- events – informacje o aktywnych zdarzeniach
+	- clients – PID-y klientów, którzy chcą dostawać powiadomienia
+	
+###3.3: Rekord event – opis jednego wydarzenia
+```erlang
+-record(event, {
+    name = "",
+    description = "",
+    pid,
+    timeout = {{1970,1,1},{0,0,0}}
+}).
+```
+Dla każdego zdarzenia serwer pamięta:
+	- `name – identyfikator,
+	- `description` – treść powiadomienia,
+	- `pid` – PID procesu timera (`event.erl),
+	- `timeout` – kiedy ma się wykonać.
+Dzięki temu:
+	- po nazwie możemy znaleźć PID procesu i np. je anulować,
+	- po done, Name możemy dobrać opis z rekordu i wysłać go klientom.
 ---
 ## CZĘŚĆ 4: Testowanie
 
