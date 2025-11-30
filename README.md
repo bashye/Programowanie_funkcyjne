@@ -5,30 +5,50 @@
 ### 1.1. Definicja problemu
 Chcemy napisać system przypomnień (Reminder App).
 
-#### Wymagania 1:
-- Dodawanie wydarzenia (Nazwa, Opis, Czas).
-- Powiadomienie, gdy czas nadejdzie.
-- Anulowanie wydarzenia po nazwie.
-- Obsługa wielu klientów (możliwość podpięcia GUI, WWW w przyszłości).
+#### Wymagania:
+- Dodawanie wydarzeń:
+	- `nazwa`
+	- `opis`
+	- `czas` (kiedy wywołać przypomnienie)
+- Gdy czas nadejdzie → system wysyła powiadomienie.
+- Możliwość anulowania wydarzenia po nazwie.
+- Możliwość wielu klientów (CLI teraz, w przyszłości GUI/WWW/IM/etc.).
+- System powinien umożliwiać:
+	- monitorowanie serwera,
+	- bezpieczne wyłączanie serwera,
+	- aktualizację kodu podczas działania (hot code reload).
 
-### 1.3. Architektura w Erlang
-W Erlangu dzielimy problem na małe, niezależne byty:
+### 1.2. Architektura w Erlang
+W Erlangu system dzielimy na niezależne procesy, które nie dzielą pamięci i komunikują się jedynie wiadomościami.
 
-1. **Klient (Client):** Użytkownik lub inny system. Zleca zadania.
-2. **Serwer Wydarzeń (Event Server):** Menadżer.
-- Przyjmuje zlecenia (dodaj/anuluj).
-- Zarządza subskrybentami (komu wysłać powiadomienie?).
-- NIE odlicza czasu! (To kluczowe dla dekompozycji).
-3. **Procesy Wydarzeń (Event Processes - X, Y, Z):**
-- Każde przypomnienie to osobny proces.
-- Proces startuje, czeka X czasu, wysyła wiadomość i umiera.
-- Są lekkie (można ich mieć miliony).
-> **Kluczowa uwaga:** To jest dekompozycja problemu. Jeśli proces "Przypomnienie o pizzy" ulegnie awarii, serwer działa dalej, a "Przypomnienie o spotkaniu" jest bezpieczne.
+1. Klient (Client)
+- wysyła żądania: `add`, `cancel`, `subscribe`, `shutdown`,
+- odbiera powiadomienia o zakończonych wydarzeniach,
+- może monitorować serwer (wykryć awarię).
+Każdy klient to osobny proces.
 
-### Projektowanie Protokołu (Kontrakt)
+2. Serwer Wydarzeń (Event Server)
+- Centralny proces zarządzający systemem.
+- przyjmuje subskrypcje klientów,
+- uruchamia procesy wydarzeń,
+- przekazuje powiadomienia do klientów,
+- obsługuje anulowanie i zamknięcie systemu,
+- może mieć przeładowany kod w trakcie działania.
+Serwer nie odlicza czasu — to zadanie procesów wydarzeń.
+
+3. Procesy Wydarzeń (Event Processes)
+Każde wydarzenie działa jako osobny, lekki proces.
+Zachowanie:
+- czeka określony czas (`receive after`),
+- wysyła do serwera: `{done, Id}`,
+- kończy działanie,
+- jeśli dostanie `cancel`, kończy się natychmiast.
+Dzięki temu awaria pojedynczego wydarzenia nie wpływa na resztę systemu.
+
+### Projektowanie Protokołu
 
 - **Klient -> Serwer:**
-	- `{subscribe, Pid} `
+	- `{subscribe, Pid}` - Zapisz mnie jako odbiorcę powiadomień
 	- `{add, Name, Description, TimeOut}`
 	- `{cancel, Name}`
 - **Serwer -> Klient:**
