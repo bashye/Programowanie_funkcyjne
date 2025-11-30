@@ -213,13 +213,13 @@ Ten rekord przechowuje:
 }).
 ```
 Dla każdego zdarzenia serwer pamięta:
-	- `name` – identyfikator,
-	- `description` – treść powiadomienia,
-	- `pid` – PID procesu timera (`event.erl`),
-	- `timeout` – kiedy ma się wykonać.
+- `name` – identyfikator,
+- `description` – treść powiadomienia,
+- `pid` – PID procesu timera (`event.erl`),
+- `timeout` – kiedy ma się wykonać.
 Dzięki temu:
-	- po nazwie możemy znaleźć PID procesu i np. je anulować,
-	- po done, Name możemy dobrać opis z rekordu i wysłać go klientom.
+- po nazwie możemy znaleźć PID procesu i np. je anulować,
+- po done, Name możemy dobrać opis z rekordu i wysłać go klientom.
 
 **Pętla serwera z wczytanym stanem**
 ```erlang
@@ -296,12 +296,12 @@ To chroni system przed „martwymi zdarzeniami”.
     Pid ! {MsgRef, ok},
     loop(S#state{events=Events});
 ```
-- Mechanizm:
-	- serwer sprawdza, czy zdarzenie istnieje,
-	- jeśli tak:
-		- wywołuje `event:cancel/1`, aby zatrzymać proces timera,
-		- usuwa zdarzenie z listy,
-	- jeśli nie, po prostu odpowiada `{ok}` (bo „i tak już nie istnieje”).
+Mechanizm:
+- serwer sprawdza, czy zdarzenie istnieje,
+- jeśli tak:
+	- wywołuje `event:cancel/1`, aby zatrzymać proces timera,
+	- usuwa zdarzenie z listy,
+- jeśli nie, po prostu odpowiada `{ok}` (bo „i tak już nie istnieje”).
 	
 **Obsługa powiadomień od zdarzeń `{done, Name}`**
 ```erlang
@@ -320,8 +320,8 @@ To chroni system przed „martwymi zdarzeniami”.
 ```
 Proces zdarzenia (timer) wysyła {done, Name}.
 Serwer:
-	- wyszukuje rekord zdarzenia,
-	- wysyła powiadomienie do KAŻDEGO klienta:
+- wyszukuje rekord zdarzenia,
+- wysyła powiadomienie do KAŻDEGO klienta:
 ```erlang
 {done, Name, Description}
 ```
@@ -358,8 +358,8 @@ To kluczowe w systemach telekomunikacyjnych, bankowych i wszędzie tam, gdzie ap
 
 ### Dwie wersje modułu naraz
 Code server może przechowywać:
-	- starą wersję modułu (old)
-	- nową wersję (new)
+- starą wersję modułu (old)
+- nową wersję (new)
 Nowa wersja pojawia się po kompilacji:
 ```erlang
 c(Module).
@@ -381,8 +381,8 @@ To jest zewnętrzne wywołanie → proces natychmiast zaczyna działać w nowym 
 
 **Uwaga: 3-cia wersja modułu = zabity proces**
 VM trzyma max 2 wersje:
-	- old
-	- new
+- old
+- new
 Jeśli pojawi się **trzecia**, procesy nadal działające na najstarszej wersji są ubijane, bo VM zakłada, że nie potrafią się zaktualizować.
 
 ### Przykład pełnego upgrade’u
@@ -403,9 +403,9 @@ upgrade(OldState) ->
     OldState.   %% ewentualna transformacja stanu
 ```
 Działanie:
-	- po `update` proces wywołuje `?MODULE:server`, czyli wskakuje w nową wersję modułu,
-	- stan pozostaje (również może zostać przekształcony w `upgrade/1`),
-	- nie trzeba restartować systemu.
+- po `update` proces wywołuje `?MODULE:server`, czyli wskakuje w nową wersję modułu,
+- stan pozostaje (również może zostać przekształcony w `upgrade/1`),
+- nie trzeba restartować systemu.
 
 ---
 
@@ -414,10 +414,10 @@ W aplikacjach współbieżnych w Erlangu procesy mogą umierać w każdej chwili
 Dlatego potrzebujemy mechanizmu, który pilnuje innych procesów i automatycznie je restartuje, jeśli padną.
 
 **Supervisor:**
-	- uruchamia proces, który ma nadzorować (np. nasz event server),
-	- monitoruje go,
-	- jeśli proces padnie z dowolnego powodu → restartuje go automatycznie,
-	- jeśli supervisor dostanie sygnał shutdown → kończy pracę i zabija swoje dziecko.
+- uruchamia proces, który ma nadzorować (np. nasz event server),
+- monitoruje go,
+- jeśli proces padnie z dowolnego powodu → restartuje go automatycznie,
+- jeśli supervisor dostanie sygnał shutdown → kończy pracę i zabija swoje dziecko.
 To przenosi odpowiedzialność za stabilność aplikacji z procesu na superwizora.
 
 **Funkcje `start/2` i `start_link/2` uruchamiają proces supervisora:**
@@ -454,7 +454,7 @@ loop({M,F,A}) ->
 - Jeśli dziecko umiera:
 	- Reason = shutdown → supervisor kończy pracę (to celowe).
 	- Reason ≠ shutdown → drukuje powód i restartuje proces.
- - 
+
 **Przykład działania:**
 1. Kompilacja modułów:
 ```erlang
