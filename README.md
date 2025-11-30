@@ -237,8 +237,8 @@ To jest esencja bezpiecznej współbieżności w Erlangu.
 
 **Funkcja `init/0` — start serwera**
 Przy starcie serwer:
-	- Tworzy puste słowniki zdarzeń i klientów.
-	- Wchodzi do pętli loop/1 z takim stanem.
+- Tworzy puste słowniki zdarzeń i klientów.
+- Wchodzi do pętli loop/1 z takim stanem.
 
 **Obsługa subskrypcji `{subscribe, Client}`**
 ```erlang
@@ -279,8 +279,8 @@ Zdarzenia są zgłaszane jako:
 - Dodaje rekord zdarzenia do stanu (events).
 - Odpowiada klientowi {ok}.
 Jeśli czas niepoprawny:
-	- serwer nie tworzy procesu,
-	- wysyła {error, bad_timeout}.
+- serwer nie tworzy procesu,
+- wysyła {error, bad_timeout}.
 To chroni system przed „martwymi zdarzeniami”.
 
 **Anulowanie zdarzenia `{cancel, Name}`**
