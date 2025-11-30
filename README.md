@@ -583,36 +583,36 @@ Test:
 ```erlang
 %% === TEST ZADANIA 1: ex1_actor ===
 
-%% 1. Kompilacja modułu
-c(ex1_actor).
+%% 1> Kompilacja modułu
+1> c(ex1_actor).
 %% Oczekiwane:
-%% {ok,ex1_actor}
+{ok,ex1_actor}
 
-%% 2. Startujemy proces aktora
-Pid = ex1_actor:start().
+%% 2> Startujemy proces aktora
+2> Pid = ex1_actor:start().
 %% Oczekiwane (PID będzie różny):
-%% <0.75.0>
+<0.75.0>
 
-%% 3. Wysyłamy pierwszą wiadomość
-Pid ! hello.
+%% 3> Wysyłamy pierwszą wiadomość
+3> Pid ! hello.
 %% Oczekiwane na ekranie:
-%% received: hello
+received: hello
 %% Oczekiwany wynik zwrócony przez komórkę:
-%% hello
+hello
 
-%% 4. Wysyłamy drugą wiadomość
-Pid ! 123.
+%% 4> Wysyłamy drugą wiadomość
+4> Pid ! 123.
 %% Oczekiwane na ekranie:
-%% received: 123
+received: 123
 %% Oczekiwany wynik:
-%% 123
+123
 
-%% 5. Wysyłamy trzecią wiadomość (krotkę)
-Pid ! {test, 42}.
+%% 5> Wysyłamy trzecią wiadomość (krotkę)
+5> Pid ! {test, 42}.
 %% Oczekiwane na ekranie:
-%% received: {test,42}
+received: {test,42}
 %% Oczekiwany wynik:
-%% {test,42}
+{test,42}
 
 %% Proces nadal działa i czeka na kolejne wiadomości
 ```
@@ -644,38 +644,35 @@ Testy:
 %% 1> Kompilacja modułu
 1> c(ex2_timeout).
 %% Wynik:
-%% {ok,ex2_timeout}
+{ok,ex2_timeout}
 
 %% 2> Start procesu z timeoutem
 2> Pid = ex2_timeout:start().
 %% Wynik (PID będzie różny):
-%% <0.80.0>
+<0.80.0>
 
 %% 3> Wysyłamy wiadomość ping na czas
 3> Pid ! {ping, self()}.
 %% Wynik wyrażenia:
-%% {ping,<0.xx.0>}
+{ping,<0.xx.0>}
 
 %% 4> Odbieramy odpowiedź od procesu
 4> receive Msg -> Msg end.
 %% Wynik:
-%% pong
+pong
 
 %% (W tym teście NIE ma timeoutu, bo proces odpowiedział przed 5 sekundami)
-
-
 
 %% --- Test 2: Brak wiadomości → timeout ---
 
 %% 5> Startujemy drugi proces
 5> Pid2 = ex2_timeout:start().
 %% Wynik:
-%% <0.81.0>
+<0.81.0>
 
 %% 6> NIE wysyłamy do Pid2 żadnej wiadomości.
 %%    Proces sam wyświetli po ~5 sekundach:
-
-%% timeout
+timeout
 
 %% (Po wyświetleniu "timeout" proces kończy działanie)
 ```
@@ -725,12 +722,12 @@ Testy:
 %% 1> Kompilacja modułu serwera klucz-wartość
 1> c(ex3_kv).
 %% Wynik:
-%% {ok,ex3_kv}
+{ok,ex3_kv}
 
 %% 2> Start procesu serwera
 2> ex3_kv:start().
 %% Wynik (PID będzie różny):
-%% <0.90.0>
+<0.90.0>
 %% (Dodatkowo proces został zarejestrowany pod atomem ex3_kv)
 
 
@@ -740,17 +737,17 @@ Testy:
 %% 3> Dodajemy pierwszą wartość
 3> ex3_kv:put(list, 10).
 %% Wynik:
-%% ok
+ok
 
 %% 4> Dodajemy drugą wartość
 4> ex3_kv:put(list, 20).
 %% Wynik:
-%% ok
+ok
 
 %% 5> Dodajemy trzecią wartość
 5> ex3_kv:put(list, 30).
 %% Wynik:
-%% ok
+ok
 
 
 
@@ -759,7 +756,7 @@ Testy:
 %% 6> Pobieramy aktualną listę
 6> ex3_kv:get(list).
 %% Wynik:
-%% [30,20,10]
+[30,20,10]
 %% (Kolejność jest odwrotna, bo każdą wartość dodajemy na początek listy)
 ```
 
@@ -787,36 +784,36 @@ Testy:
 %% 1> Kompilacja modułu timera
 1> c(ex4_timer).
 %% Wynik:
-%% {ok,ex4_timer}
+{ok,ex4_timer}
 
 %% 2> Pobieramy PID bieżącego procesu (shella)
 2> Self = self().
 %% Wynik (PID będzie różny):
-%% <0.100.0>
+<0.100.0>
 
 %% --- Uruchamiamy timery równolegle ---
 
 %% 3> Start timera "A" ustawionego na 2 sekundy
 3> ex4_timer:start_timer("A", 2, Self).
 %% Wynik (PID procesu timera będzie różny):
-%% <0.101.0>
+<0.101.0>
 
 %% 4> Start timera "B" ustawionego na 5 sekund
 4> ex4_timer:start_timer("B", 5, Self).
 %% Wynik:
-%% <0.102.0>
+<0.102.0>
 
 %% --- Odbieranie wyników z timerów ---
 
 %% 5> Odbieramy pierwszą wiadomość
 5> receive Msg1 -> Msg1 end.
 %% Wynik po ok. 2 sekundach:
-%% {done,"A"}
+{done,"A"}
 
 %% 6> Odbieramy drugą wiadomość
 6> receive Msg2 -> Msg2 end.
 %% Wynik po ok. 5 sekundach od startu:
-%% {done,"B"}
+{done,"B"}
 
 %% Timery działają równolegle — krótszy ("A") kończy się pierwszy,
 %% dłuższy ("B") kończy się później.
