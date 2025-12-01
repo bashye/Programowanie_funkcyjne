@@ -56,7 +56,7 @@ Dzięki temu awaria pojedynczego wydarzenia nie wpływa na resztę systemu.
 - **Serwer -> Klient:**
 	- `{Ref, ok}` lub `{error, Reason}` - Potwierdzenie wykonania operacji lub błąd
 	- `{done, Name, Description}` Powiadomienie, że wydarzenie się wykonało
-- **Serwer <-> Proces Wydarzenia (Wewnętrzne):**
+- **Serwer <-> Proces Wydarzenia:**
 	- Serwer -> Proces: `cancel` - Proces zdarzenia ma się zakończyć
 	- Proces -> Serwer: `{done, Id}` - Czas minął, powiadom klientów
 
