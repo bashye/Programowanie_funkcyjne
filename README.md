@@ -165,21 +165,6 @@ normalize(N) ->
 98 dni → [49, 49]
 100 dni → [49, 49, 2]
 ```
-**Zmiana pętli `loop/1`: obsługa listy timeoutów**
-```erlang
-loop(S = #state{server=Server, to_go=[T|Next]}) ->
-    receive
-        {Server, Ref, cancel} ->
-            Server ! {Ref, ok}
-    after T*1000 ->
-        case Next of
-            [] ->
-                Server ! {done, S#state.name};
-            _ ->
-                loop(S#state{to_go=Next})
-        end
-    end.
-```
 
 ---
 
