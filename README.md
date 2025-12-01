@@ -225,9 +225,19 @@ Czyli: brak zmiennych globalnych, brak mutacji “w miejscu” – tylko przekaz
 To jest esencja bezpiecznej współbieżności w Erlangu.
 
 **Funkcja `init/0` — start serwera**
-Przy starcie serwer:
-- Tworzy puste słowniki zdarzeń i klientów.
-- Wchodzi do pętli loop/1 z takim stanem.
+```erlang
+init() ->
+    loop(#state{
+        events = orddict:new(),
+        clients = orddict:new()
+    }).
+```
+Przy starcie serwer:  
+- Tworzy początkowy stan serwera:
+	- events – pusta lista wydarzeń,
+	- clients – pusta lista klientów.
+- Uruchamia główną pętlę serwera (loop/1) z tym stanem.
+- Dzięki temu serwer startuje zawsze w czystym, zdefiniowanym środowisku.
 
 **Obsługa subskrypcji `{subscribe, Client}`**
 ```erlang
