@@ -97,8 +97,8 @@ loop(State) ->
 - Jeśli nie dostanie anulowania, po czasie Delay wykona kod w sekcji after, czyli zgłosi, że wydarzenie się zakończyło.
 - Wszystko to dzieje się wewnątrz jednego lightweight procesu Erlanga.
 
-**Potrzebujemy stanu — tworzymy rekord `state`**
-Aby ten proces wiedział:
+**Potrzebujemy stanu — tworzymy rekord `state`:**  
+Aby ten proces wiedział:  
 	- ile czasu ma czekać,
 	- jak nazywa się wydarzenie,
 	- do kogo ma wysłać powiadomienie,
