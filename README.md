@@ -99,9 +99,9 @@ loop(State) ->
 
 **Potrzebujemy stanu — tworzymy rekord `state`:**  
 Aby ten proces wiedział:  
-	- ile czasu ma czekać,
-	- jak nazywa się wydarzenie,
-	- do kogo ma wysłać powiadomienie,
+- ile czasu ma czekać,
+- jak nazywa się wydarzenie,
+- do kogo ma wysłać powiadomienie,
 ```erlang
 -module(event).
 -compile(export_all).
