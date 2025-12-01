@@ -129,11 +129,15 @@ To informuje go, że wydarzenie się zakończyło.
 
 Test:
 ```erlang
-c(event).
-rr(event, state).
-
-Pid = spawn(event, loop, [#state{server=self(), name="test", to_go=5}]).
-flush().
+1> c(event).
+{ok,event}
+2> rr(event, state).
+[record definitions loaded from event]
+3> Pid = spawn(event, loop, [#state{server=self(), name="test", to_go=5}]).
+<0.95.0>
+4> flush().
+Shell got {done,"test"}
+ok
 ```
 **Problem ~49dni**
 
