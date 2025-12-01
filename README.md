@@ -139,7 +139,7 @@ Test:
 Shell got {done,"test"}
 ok
 ```
-**Problem ~49dni**
+### **2.3 Problem ~49dni**
 
 W Erlangu limit czasu w receive … after wynosi około 49 dni (w milisekundach).
 Jeśli chcemy ustawić timer np. na rok, otrzymamy błąd:
