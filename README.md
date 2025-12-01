@@ -205,7 +205,7 @@ Dla każdego zdarzenia serwer pamięta:
 - `name` – identyfikator,
 - `description` – treść powiadomienia,
 - `pid` – PID procesu timera (`event.erl`),
-- `timeout` – kiedy ma się wykonać.
+- `timeout` – kiedy ma się wykonać.  
 Dzięki temu:
 - po nazwie możemy znaleźć PID procesu i np. je anulować,
 - po done, Name możemy dobrać opis z rekordu i wysłać go klientom.
