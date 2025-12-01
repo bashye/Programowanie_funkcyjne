@@ -277,10 +277,10 @@ Zdarzenia są zgłaszane jako:
 - Serwer sprawdza, czy czas jest poprawny (`valid_datetime`).
 - Jeśli tak → tworzy nowy proces zdarzenia (`event:start_link`).
 - Dodaje rekord zdarzenia do stanu (`events`).
-- Odpowiada klientowi `{ok}`.
+- Odpowiada klientowi `{ok}`.  
 Jeśli czas niepoprawny:
 - serwer nie tworzy procesu,
-- wysyła `{error, bad_timeout}`.
+- wysyła `{error, bad_timeout}`.  
 To chroni system przed „martwymi zdarzeniami”.
 
 **Anulowanie zdarzenia `{cancel, Name}`**
