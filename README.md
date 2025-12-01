@@ -13,7 +13,7 @@ Chcemy napisać system przypomnień (Reminder App).
 	- `czas` (kiedy wywołać przypomnienie)
 - Gdy czas nadejdzie → system wysyła powiadomienie.
 - Możliwość anulowania wydarzenia po nazwie.
-- Możliwość wielu klientów (CLI teraz, w przyszłości GUI/WWW/IM/etc.).
+- Możliwość wielu klientów.
 - System powinien umożliwiać:
 	- monitorowanie serwera,
 	- bezpieczne wyłączanie serwera,
