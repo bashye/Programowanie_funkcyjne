@@ -251,8 +251,9 @@ Przy starcie serwer:
 - zapisuje go do słownika klientów (kluczem jest referencja monitora),
 - odpowiada `{ok}`,
 - przechodzi do kolejnej iteracji pętli.
-**Walidacja daty i czasu (`valid_datetime/1`)**
-Zdarzenia są zgłaszane jako:
+
+**Walidacja daty i czasu (`valid_datetime/1`)**  
+Zdarzenia są zgłaszane jako:  
 `{{Year, Month, Day}, {Hour, Minute, Second}}`
 
 **Dodawanie zdarzenia `{add, Name, Description, Timeout}`**
