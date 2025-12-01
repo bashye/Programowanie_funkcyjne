@@ -170,7 +170,7 @@ normalize(N) ->
 
 ## CZĘŚĆ 3: Moduł Server
 
-**Format wiadomości {Pid, Ref, Message}**
+**Format wiadomości `{Pid, Ref, Message}`**  
 Serwer dogaduje się z klientami zawsze w tym samym formacie:
 ```erlang
 {Pid, MsgRef, {subscribe, Client}}
