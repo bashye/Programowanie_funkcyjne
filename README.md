@@ -380,6 +380,7 @@ Jeśli pojawi się **trzecia**, procesy nadal działające na najstarszej wersji
 
 ### Przykład pełnego upgrade’u
 ```erlang
+%%% hotload.erl
 -module(hotload).
 -export([server/1, upgrade/1]).
 
@@ -387,18 +388,25 @@ server(State) ->
     receive
         update ->
             NewState = ?MODULE:upgrade(State),
-            ?MODULE:server(NewState);    %% przejście do nowego kodu
-        SomeMessage ->
+            ?MODULE:server(NewState);
+        Msg ->
+            io:format("Received: ~p~n", [Msg]),
             server(State)
     end.
 
 upgrade(OldState) ->
-    OldState.   %% ewentualna transformacja stanu
+    io:format("Upgrading state: ~p~n", [OldState]),
+    OldState.
 ```
 Działanie:
-- po `update` proces wywołuje `?MODULE:server`, czyli wskakuje w nową wersję modułu,
-- stan pozostaje (również może zostać przekształcony w `upgrade/1`),
-- nie trzeba restartować systemu.
+- Po otrzymaniu `update` proces wykonuje `upgrade/1`, aby przygotować lub zmienić stan.
+- Następnie wywołuje:
+```erlang
+?MODULE:server(NewState)
+```
+co przełącza go na najnowszą wersję modułu bez zatrzymywania procesu.
+- Stan zostaje zachowany (lub zmieniony w `upgrade/1`).
+- Cały system działa dalej — aktualizacja odbywa się bez restartu.
 
 ---
 
