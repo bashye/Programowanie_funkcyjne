@@ -321,7 +321,7 @@ Mechanizm:
 Proces zdarzenia (timer) wysyła {done, Name}.
 Serwer:
 - wyszukuje rekord zdarzenia,
-- wysyła powiadomienie do KAŻDEGO klienta:
+- wysyła powiadomienie do każdego zasubskrybowanego klienta:
 ```erlang
 {done, Name, Description}
 ```
