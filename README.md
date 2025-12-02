@@ -821,7 +821,7 @@ Testy:
 5> receive M1 -> M1 end.
 {done,"Timer A"}
 
-%% 6> Czekamy na drugi timer (powinien przyjść "Timer B" po kolejnych 15 sek)
+%% 6> Czekamy na drugi timer (powinien przyjść "Timer B" po 15 sek)
 6> receive M2 -> M2 end.
 {done,"Timer B"}
 ```
