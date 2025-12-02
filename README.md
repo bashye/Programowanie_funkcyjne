@@ -252,6 +252,31 @@ Przy starcie serwer:
 - odpowiada `{ok}`,
 - przechodzi do kolejnej iteracji pętli.
 
+**Walidacja daty i czasu zdarzenia (`valid_datetime/1`)**
+Serwer przy dodawaniu wydarzenia ({add, Name, Desc, Timeout}) musi sprawdzić, czy użytkownik podał poprawną datę i czas.
+```erlang
+valid_datetime({Date, Time}) ->
+    try
+        calendar:valid_date(Date) andalso valid_time(Time)
+    catch
+        error:function_clause -> false   %% jeśli format nie pasuje
+    end;
+valid_datetime(_) ->
+    false.
+
+%% Sprawdzenie poprawności czasu
+valid_time({H,M,S}) ->
+    H >= 0, H < 24,
+    M >= 0, M < 60,
+    S >= 0, S < 60 -> true;
+valid_time(_) ->
+    false.
+```
+- funkcja przyjmuje krotkę `{Data, Czas}` i weryfikuje poprawność obu elementów,
+- sprawdza istnienie daty w kalendarzu oraz poprawność przedziałów czasu,
+- zabezpiecza wykonanie przez blok `try...catch`, zwracając false w przypadku błędnej struktury danych,
+- pomocniczo upewnia się, że godziny, minuty i sekundy są liczbami mieszczącymi się w naturalnych granicach (0–23, 0–59).
+
 **Dodawanie zdarzenia `{add, Name, Description, Timeout}`**
 ```erlang
 {Pid, MsgRef, {add, Name, Description, TimeOut}} ->
