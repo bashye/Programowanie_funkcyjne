@@ -625,7 +625,7 @@ Test:
 
 %% 2> Startujemy proces aktora
 2> Pid = ex1_actor:start().
-%% Oczekiwane (PID będzie różny):
+%% Oczekiwane:
 <0.75.0>
 
 %% 3> Wysyłamy pierwszą wiadomość
@@ -683,7 +683,7 @@ Testy:
 
 %% 2> Start procesu z timeoutem
 2> Pid = ex2_timeout:start().
-%% Wynik (PID będzie różny):
+%% Wynik:
 <0.80.0>
 
 %% 3> Wysyłamy wiadomość ping na czas
@@ -715,15 +715,13 @@ timeout
 ### Zadanie 3:
 ```erlang
 -module(ex3_kv).
--export([start/0, put/2, get/1, loop/1]).
+-export([start/0, rpc/2, loop/1]). 
 
-%% Startuje serwer i rejestruje go pod nazwą ex3_kv
+%% 1. Startuje serwer (zwraca Pid)
 start() ->
-    Pid = spawn(?MODULE, loop, [[]]),
-    register(ex3_kv, Pid),
-    Pid.
+    spawn(?MODULE, loop, [[]]).
 
-%% Główna pętla serwera, State = lista liczb
+%% 2. Główna pętla serwera
 loop(State) ->
     receive
         {From, {add, V}} ->
@@ -736,63 +734,51 @@ loop(State) ->
             loop(State)
     end.
 
-%% API: dodaje liczbę do serwera
-put(Name, V) ->
-    ex3_kv ! {self(), {add, V}},
+%% 3. Funkcja pomocnicza rpc
+rpc(Pid, Msg) ->
+    Pid ! {self(), Msg},
     receive
-        Reply -> Reply
-    end.
-
-%% API: pobiera aktualną listę
-get(Name) ->
-    ex3_kv ! {self(), get},
-    receive
-        Reply -> Reply
+        Response -> Response
     end.
 ```
 Testy:
 ```erlang
 %% === TEST ZADANIA 3: ex3_kv ===
 
-%% 1> Kompilacja modułu serwera klucz-wartość
+%% 1> Kompilacja modułu
 1> c(ex3_kv).
 %% Wynik:
 {ok,ex3_kv}
 
-%% 2> Start procesu serwera
-2> ex3_kv:start().
-%% Wynik (PID będzie różny):
+%% 2> Start procesu serwera i przypisanie PID do zmiennej
+2> Pid = ex3_kv:start().
+%% Wynik:
 <0.90.0>
-%% (Dodatkowo proces został zarejestrowany pod atomem ex3_kv)
-
-
 
 %% --- Dodawanie wartości do serwera ---
 
-%% 3> Dodajemy pierwszą wartość
-3> ex3_kv:put(list, 10).
+%% 3> Dodajemy pierwszą wartość używając rpc
+3> ex3_kv:rpc(Pid, {add, 10}).
 %% Wynik:
 ok
 
 %% 4> Dodajemy drugą wartość
-4> ex3_kv:put(list, 20).
+4> ex3_kv:rpc(Pid, {add, 20}).
 %% Wynik:
 ok
 
 %% 5> Dodajemy trzecią wartość
-5> ex3_kv:put(list, 30).
+5> ex3_kv:rpc(Pid, {add, 30}).
 %% Wynik:
 ok
-
-
 
 %% --- Pobranie stanu z serwera ---
 
 %% 6> Pobieramy aktualną listę
-6> ex3_kv:get(list).
+6> ex3_kv:rpc(Pid, get).
 %% Wynik:
 [30,20,10]
-%% (Kolejność jest odwrotna, bo każdą wartość dodajemy na początek listy)
+%% (Kolejność odwrotna - zgadza się, bo dodajemy na początek listy: [V | State])
 ```
 
 ### Zadanie 4:
@@ -823,7 +809,7 @@ Testy:
 
 %% 2> Pobieramy PID bieżącego procesu (shella)
 2> Self = self().
-%% Wynik (PID będzie różny):
+%% Wynik:
 <0.100.0>
 
 %% --- Uruchamiamy timery równolegle ---
@@ -897,9 +883,6 @@ Testy:
 2> ex5_monitor:start().
 %% Oczekiwane:
 Monitoring <0.X.0> (ref=#Ref<...>)
-
-%% Tu PID i Ref będą różne, np.:
-%% Monitoring <0.86.0> (ref=#Ref<0.123.456.7>)
 
 %% --- Czekamy na śmierć procesu dziecka ---
 %% Dziecko umiera po ok. 2 sekundach z powodem 'crash'
