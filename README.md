@@ -325,7 +325,6 @@ Serwer:
 ```erlang
 {done, Name, Description}
 ```
-- usuwa zdarzenie z listy.
   
 **Funkcja `send_to_clients/2`**
 ```erlang
