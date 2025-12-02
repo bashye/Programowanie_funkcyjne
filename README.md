@@ -374,7 +374,7 @@ To jest zewnętrzne wywołanie → proces natychmiast zaczyna działać w nowym 
 **Uwaga: 3-cia wersja modułu = zabity proces**
 VM trzyma max 2 wersje:
 - old
-- new
+- new  
 Jeśli pojawi się **trzecia**, procesy nadal działające na najstarszej wersji są ubijane, bo VM zakłada, że nie potrafią się zaktualizować.
 
 ### Przykład pełnego upgrade’u
