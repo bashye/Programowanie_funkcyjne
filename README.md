@@ -640,7 +640,7 @@ received: {test,42}
 start() ->
     spawn(?MODULE, loop, []).
 
-%% Czeka na {ping, From}; jeśli nie dostanie w 5s -> "timeout"
+%% Czeka na {ping, From}; jeśli nie dostanie w 20s -> "timeout"
 loop() ->
     receive
         {ping, From} ->
@@ -675,7 +675,7 @@ Testy:
 %% Wynik:
 pong
 
-%% (W tym teście NIE ma timeoutu, bo proces odpowiedział przed 5 sekundami)
+%% (W tym teście NIE ma timeoutu, bo proces odpowiedział przed 20 sekundami)
 
 %% --- Test 2: Brak wiadomości → timeout ---
 
