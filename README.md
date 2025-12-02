@@ -325,13 +325,6 @@ Serwer:
 ```erlang
 {done, Name, Description}
 ```
-  
-**Funkcja `send_to_clients/2`**
-```erlang
-send_to_clients(Msg, ClientDict) ->
-    orddict:map(fun(_Ref, Pid) -> Pid ! Msg end, ClientDict).
-```
-Wysyła powiadomienie do każdego klienta.
 
 **Komunikaty systemowe**
 ```erlang
