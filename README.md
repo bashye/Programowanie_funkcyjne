@@ -252,10 +252,6 @@ Przy starcie serwer:
 - odpowiada `{ok}`,
 - przechodzi do kolejnej iteracji pętli.
 
-**Walidacja daty i czasu (`valid_datetime/1`)**  
-Zdarzenia są zgłaszane jako:  
-`{{Year, Month, Day}, {Hour, Minute, Second}}`
-
 **Dodawanie zdarzenia `{add, Name, Description, Timeout}`**
 ```erlang
 {Pid, MsgRef, {add, Name, Description, TimeOut}} ->
