@@ -561,6 +561,19 @@ Napisz funkcję, która:
 	- sprawdzenie, że oba zwracają `done` we właściwej kolejności,
 	- pokazanie, że kolejne komórki w notebooku nadal działają (studencka obserwacja współbieżności).
 
+### **ZADANIE 5 – Proces monitorujący inny proces**
+**Polecenie:**
+1. Napisz funkcję `start/0`, która tworzy proces monitorujący.
+2. Proces monitorujący powinien:
+	- otrzymać PID dziecka,
+	- wykonać `erlang:monitor(process, Pid)`,
+	- czekać na wiadomość `{'DOWN', Ref, process, Pid, Reason}`,
+	- wypisać powód śmierci procesu.
+3. Stwórz drugi proces, który:
+	- wykonuje jakąś pracę,
+	- po chwili umiera z własnym powodem (np. exit(crash)).
+4. Uruchom monitor i sprawdź, czy poprawnie wykrywa śmierć dziecka.
+
 ## **Rozwiązania zadań**
 
 ### Zadanie 1:
@@ -818,4 +831,62 @@ Testy:
 
 %% Timery działają równolegle — krótszy ("A") kończy się pierwszy,
 %% dłuższy ("B") kończy się później.
+```
+### Zadanie 5:
+```erlang
+%%% ex5_monitor.erl
+-module(ex5_monitor).
+-export([start/0, child/0, monitor/1]).
+
+%% Startuje zadanie testowe
+start() ->
+    %% Uruchamiamy proces dziecka
+    ChildPid = spawn(?MODULE, child, []),
+
+    %% Uruchamiamy monitor, przekazując mu PID dziecka
+    spawn(?MODULE, monitor, [ChildPid]).
+
+%% Proces dziecko — umrze po chwili
+child() ->
+    timer:sleep(2000),
+    exit(crash).
+
+%% Proces monitorujący
+monitor(Pid) ->
+    %% Ustawiamy monitor na wskazany PID
+    Ref = erlang:monitor(process, Pid),
+    io:format("Monitoring ~p (ref=~p)~n", [Pid, Ref]),
+
+    %% Czekamy na wiadomość o śmierci procesu
+    receive
+        {'DOWN', Ref, process, _Pid, Reason} ->
+            io:format("Process ~p died, reason: ~p~n", [Pid, Reason])
+    end.
+```
+Testy:
+```erlang
+%% === TEST ZADANIA 5: ex5_monitor ===
+
+%% 1> Kompilacja modułu
+1> c(ex5_monitor).
+%% Oczekiwane:
+{ok,ex5_monitor}
+
+%% 2> Uruchamiamy test (monitor + dziecko)
+2> ex5_monitor:start().
+%% Oczekiwane:
+Monitoring <0.X.0> (ref=#Ref<...>)
+
+%% Tu PID i Ref będą różne, np.:
+%% Monitoring <0.86.0> (ref=#Ref<0.123.456.7>)
+
+%% --- Czekamy na śmierć procesu dziecka ---
+%% Dziecko umiera po ok. 2 sekundach z powodem 'crash'
+
+%% 3> (Nic nie wpisujemy – wiadomość sama się pojawi po ~2 s)
+%% Oczekiwany komunikat:
+Process <0.86.0> died, reason: crash
+
+%% To oznacza, że monitor odebrał sygnał 'DOWN'
+%% i poprawnie wykrył powód zakończenia.
 ```
