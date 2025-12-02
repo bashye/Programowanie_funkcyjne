@@ -816,7 +816,7 @@ Testy:
 
 %% 3> Start timera "A" ustawionego na 20 sekundy
 3> ex4_timer:start_timer("A", 20, Self).
-%% Wynik (PID procesu timera będzie różny):
+%% Wynik:
 <0.101.0>
 
 %% 4> Start timera "B" ustawionego na 30 sekund
