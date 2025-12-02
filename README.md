@@ -471,7 +471,7 @@ loop({M,F,A}) ->
 - Supervisor startuje i od razu uruchamia proces `eserv` jako swoje dziecko.
 - Zwracany jest PID supervisora — zapisujemy go w zmiennej `SupPid`.
 - Supervisor ustawia `trap_exit`, więc będzie odbierał komunikaty `'EXIT', ....`
-- 
+
 3. Sprawdzamy, czy event server działa
 ```erlang
 3> whereis(eserv).
