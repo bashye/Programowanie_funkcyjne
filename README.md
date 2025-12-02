@@ -802,42 +802,28 @@ Testy:
 ```erlang
 %% === TEST ZADANIA 4: ex4_timer ===
 
-%% 1> Kompilacja modułu timera
+%% 1> Kompilacja
 1> c(ex4_timer).
-%% Wynik:
 {ok,ex4_timer}
 
-%% 2> Pobieramy PID bieżącego procesu (shella)
-2> Self = self().
-%% Wynik:
-<0.100.0>
+%% 2> Startujemy timery na czas (10 i 15 sekundy)
+%% Przekazujemy self(), aby timer wiedział, gdzie odesłać wynik.
+2> ex4_timer:start_timer("Timer A", 10, self()).
+<0.105.0>
+3> ex4_timer:start_timer("Timer B", 15, self()).
+<0.107.0>
 
-%% --- Uruchamiamy timery równolegle ---
+%% Timery "lecą" w tle, a my w międzyczasie wykonujemy obliczenia.
+4> 123 + 456.
+579
 
-%% 3> Start timera "A" ustawionego na 20 sekundy
-3> ex4_timer:start_timer("A", 20, Self).
-%% Wynik:
-<0.101.0>
+%% 5> Czekamy na pierwszy timer (powinien przyjść "Timer A" po 10 sek)
+5> receive M1 -> M1 end.
+{done,"Timer A"}
 
-%% 4> Start timera "B" ustawionego na 30 sekund
-4> ex4_timer:start_timer("B", 30, Self).
-%% Wynik:
-<0.102.0>
-
-%% --- Odbieranie wyników z timerów ---
-
-%% 5> Odbieramy pierwszą wiadomość
-5> receive Msg1 -> Msg1 end.
-%% Wynik po ok. 20 sekundach:
-{done,"A"}
-
-%% 6> Odbieramy drugą wiadomość
-6> receive Msg2 -> Msg2 end.
-%% Wynik po ok. 30 sekundach od startu:
-{done,"B"}
-
-%% Timery działają równolegle — krótszy ("A") kończy się pierwszy,
-%% dłuższy ("B") kończy się później.
+%% 6> Czekamy na drugi timer (powinien przyjść "Timer B" po kolejnych 15 sek)
+6> receive M2 -> M2 end.
+{done,"Timer B"}
 ```
 ### Zadanie 5:
 ```erlang
