@@ -685,7 +685,7 @@ pong
 <0.81.0>
 
 %% 6> NIE wysyłamy do Pid2 żadnej wiadomości.
-%%    Proces sam wyświetli po ~5 sekundach:
+%%    Proces sam wyświetli po ~20 sekundach:
 timeout
 
 %% (Po wyświetleniu "timeout" proces kończy działanie)
