@@ -47,19 +47,6 @@ Zachowanie:
 	- jeśli dostanie `cancel`, kończy się natychmiast.
 Dzięki temu awaria pojedynczego wydarzenia nie wpływa na resztę systemu.
 
-### 1.3. Projektowanie Protokołu
-
-- **Klient -> Serwer:**
-	- `{subscribe, Pid}` - Zapisz mnie jako odbiorcę powiadomień
-	- `{add, Name, Description, TimeOut}` - Utwórz nowe wydarzenie
-	- `{cancel, Name}` - Anuluj wydarzenie
-- **Serwer -> Klient:**
-	- `{Ref, ok}` lub `{error, Reason}` - Potwierdzenie wykonania operacji lub błąd
-	- `{done, Name, Description}` Powiadomienie, że wydarzenie się wykonało
-- **Serwer <-> Proces Wydarzenia:**
-	- Serwer -> Proces: `cancel` - Proces zdarzenia ma się zakończyć
-	- Proces -> Serwer: `{done, Id}` - Czas minął, powiadom klientów
-
 ---
 
 ## CZĘŚĆ 2: Fundamenty i Moduł Event
