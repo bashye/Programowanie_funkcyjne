@@ -23,11 +23,11 @@ Chcemy napisać system przypomnień (Reminder App).
 
 W Erlangu system dzielimy na niezależne procesy, które nie dzielą pamięci i komunikują się jedynie wiadomościami.
 
-1. Klient (Client)
-		- wysyła żądania: `add`, `cancel`, `subscribe`, `shutdown`,
-		- odbiera powiadomienia o zakończonych wydarzeniach,
-		- może monitorować serwer (wykryć awarię).
-Każdy klient to osobny proces.
+1. Klient (Client)  
+	- wysyła żądania: `add`, `cancel`, `subscribe`, `shutdown`,  
+	- odbiera powiadomienia o zakończonych wydarzeniach,  
+	- może monitorować serwer (wykryć awarię).  
+Każdy klient to osobny proces.  
 
 2. Serwer Wydarzeń (Event Server)
 	- Centralny proces zarządzający systemem.
