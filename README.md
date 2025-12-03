@@ -841,7 +841,7 @@ start() ->
 
 %% Proces dziecko — umrze po chwili
 child() ->
-    timer:sleep(2000),
+    timer:sleep(10000),
     exit(crash).
 
 %% Proces monitorujący
