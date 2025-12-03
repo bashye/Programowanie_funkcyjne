@@ -871,7 +871,7 @@ Testy:
 Monitoring <0.X.0> (ref=#Ref<...>)
 
 %% --- Czekamy na śmierć procesu dziecka ---
-%% Dziecko umiera po ok. 2 sekundach z powodem 'crash'
+%% Proces dziecka umiera po ok. 10 sekundach z powodem 'crash'
 
 %% 3> (Nic nie wpisujemy – wiadomość sama się pojawi po ~2 s)
 %% Oczekiwany komunikat:
