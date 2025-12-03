@@ -505,12 +505,12 @@ Po czym uruchamia nową kopię event servera
 5> whereis(eserv).
 <0.48.0>
 ```
-6. Zabijamy supervisora
+6. Wyłączamy supervisora
 ```erlang
 6> exit(SupPid, shutdown).
 true
 ```
-Kiedy supervisor umiera - zabija swoje dziecko.
+Kiedy supervisor kończy prace - zabija swoj proces dziecko.
 
 7. Sprawdzamy, czy dziecko również zniknęło
 ```erlang
