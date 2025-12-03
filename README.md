@@ -593,7 +593,7 @@ Napisz funkcję, która:
 3. Stwórz drugi proces, który:
 	- wykonuje jakąś pracę,
 	- po chwili umiera z własnym powodem (np. exit(crash)).
-4. Uruchom monitor i sprawdź, czy poprawnie wykrywa śmierć dziecka.
+4. Uruchom monitor i sprawdź, czy poprawnie wykrywa śmierć procesu.
 
 ## **Rozwiązania zadań**
 
