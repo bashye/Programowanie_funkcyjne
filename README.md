@@ -873,7 +873,7 @@ Monitoring <0.X.0> (ref=#Ref<...>)
 %% --- Czekamy na śmierć procesu dziecka ---
 %% Proces dziecka umiera po ok. 10 sekundach z powodem 'crash'
 
-%% 3> (Nic nie wpisujemy – wiadomość sama się pojawi po ~2 s)
+%% 3> (Nic nie wpisujemy – wiadomość sama się pojawi po ~10 s)
 %% Oczekiwany komunikat:
 Process <0.86.0> died, reason: crash
 
